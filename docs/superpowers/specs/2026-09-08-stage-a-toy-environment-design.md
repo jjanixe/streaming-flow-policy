@@ -8,8 +8,9 @@ environment, analytic demonstration/data pipeline, analytic probability-flow and
 backend, ODE/SDE samplers, artifacts, and tests. Learned networks, preference fitting,
 and STEG are outside this stage.
 
-All numerical arrays and Torch computations use float32. Tests validate the same
-numeric regime that later learned models will use.
+All floating-point arrays and Torch computations use float32. String identifiers and
+integer metadata such as RNG seeds and step indices keep their natural non-floating
+dtypes. Tests validate the same floating-point regime that later learned models will use.
 
 ## Location and package integration
 
