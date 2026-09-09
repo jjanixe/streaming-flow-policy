@@ -54,8 +54,9 @@ non-finite state, metric, or occupancy fails acceptance.
 All floating-point NumPy arrays and Torch tensors use float32. String IDs and
 integer RNG metadata retain their natural dtypes. For finite actions so extreme
 that a true log density falls below the float32 range, the reported log density
-saturates at the smallest finite float32 value; mixture responsibilities remain
-finite and normalized.
+saturates at the smallest finite float32 value. Its Torch action gradient still
+uses the analytic score, and mixture responsibilities remain finite, normalized,
+and correctly ordered.
 
 ## Tests
 

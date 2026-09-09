@@ -7,6 +7,28 @@ from env.config import StageAConfig
 from env.demonstrations import DemonstrationBank
 
 
+class _LogDensityWithAnalyticScore(torch.autograd.Function):
+    @staticmethod
+    def forward(
+        ctx: object,
+        actions: torch.Tensor,
+        values: torch.Tensor,
+        scores: torch.Tensor,
+    ) -> torch.Tensor:
+        del actions
+        ctx.save_for_backward(scores)
+        return values
+
+    @staticmethod
+    def backward(
+        ctx: object,
+        output_gradient: torch.Tensor,
+    ) -> tuple[torch.Tensor, None, None]:
+        (scores,) = ctx.saved_tensors
+        action_gradient = output_gradient[:, None] * scores
+        return action_gradient, None, None
+
+
 class AnalyticField:
     def __init__(
         self,
@@ -115,7 +137,21 @@ class AnalyticField:
         # Every component has the same covariance, so the action-only
         # quadratic term cancels in the softmax. Centering the logits on one
         # component avoids squaring very large, but still finite, actions.
-        scaled_actions = self._saturate(actions / sigma[:, None])
+        action_magnitude = actions.abs().amax(dim=1, keepdim=True)
+        unit_scale = torch.ones_like(action_magnitude)
+        action_direction = actions / torch.where(
+            action_magnitude > 0.0,
+            action_magnitude,
+            unit_scale,
+        )
+        scaled_magnitude = torch.clamp(
+            action_magnitude / sigma[:, None],
+            max=1e30,
+        )
+        # A common positive rescaling preserves component ordering and action
+        # direction. It only activates after the logits are already far beyond
+        # the range where softmax can represent a non-degenerate probability.
+        scaled_actions = action_direction * scaled_magnitude
         scaled_centers = centers / sigma[:, None, None]
         center_offsets = scaled_centers - scaled_centers[:, :1, :]
         norm_offsets = scaled_centers.square().sum(dim=-1) - (
@@ -163,8 +199,18 @@ class AnalyticField:
             - log_normalizer
         )
         # A mathematically finite log density can lie below float32's range.
-        # Saturate that scalar representation instead of leaking -Inf.
-        return self._saturate(log_density, nan=torch.finfo(torch.float32).min)
+        # Saturate its forward value while retaining the exact analytic score
+        # as the action gradient.
+        saturated = self._saturate(
+            log_density,
+            nan=torch.finfo(torch.float32).min,
+        )
+        scores = self._score_from_components(valid_actions, centers, sigma)
+        return _LogDensityWithAnalyticScore.apply(
+            valid_actions,
+            saturated.detach(),
+            scores.detach(),
+        )
 
     def velocity_pf(
         self,
@@ -191,11 +237,19 @@ class AnalyticField:
     ) -> torch.Tensor:
         valid_actions, valid_times = self._validate_inputs(actions, times)
         centers, _, sigma = self._components(valid_times)
-        logits = self._relative_logits(valid_actions, centers, sigma)
+        return self._score_from_components(valid_actions, centers, sigma)
+
+    def _score_from_components(
+        self,
+        actions: torch.Tensor,
+        centers: torch.Tensor,
+        sigma: torch.Tensor,
+    ) -> torch.Tensor:
+        logits = self._relative_logits(actions, centers, sigma)
         weights = torch.softmax(logits, dim=-1)
         sigma_squared = sigma.square()[:, None, None]
         conditional = self._saturate(
-            -(valid_actions[:, None, :] - centers) / sigma_squared
+            -(actions[:, None, :] - centers) / sigma_squared
         )
         return self._saturate(
             (weights[:, :, None] * conditional).sum(dim=1)

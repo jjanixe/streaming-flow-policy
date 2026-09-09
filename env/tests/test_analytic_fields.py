@@ -116,3 +116,33 @@ def test_finite_extreme_actions_produce_finite_fields(analytic_field):
         torch.ones(2, dtype=torch.float32),
     )
     assert all(torch.isfinite(output).all() for output in outputs)
+
+
+def test_extreme_log_density_gradient_matches_finite_score(analytic_field):
+    actions = torch.tensor(
+        [[1e18, 1e18]],
+        dtype=torch.float32,
+        requires_grad=True,
+    )
+    times = torch.tensor([0.5], dtype=torch.float32)
+
+    gradient = torch.autograd.grad(
+        analytic_field.log_density(actions, times).sum(),
+        actions,
+    )[0]
+    score = analytic_field.score(actions.detach(), times)
+
+    assert torch.isfinite(gradient).all()
+    torch.testing.assert_close(gradient, score, rtol=1e-5, atol=0.0)
+
+
+def test_near_maximum_action_preserves_component_ordering(analytic_field):
+    actions = torch.tensor([[3e38, 3e38]], dtype=torch.float32)
+    times = torch.tensor([0.5], dtype=torch.float32)
+    centers, _ = analytic_field.centers_and_derivatives(times)
+    expected_component = int(centers[0, :, 1].argmax().item())
+
+    weights = analytic_field.responsibilities(actions, times)
+
+    assert int(weights.argmax(dim=1).item()) == expected_component
+    assert int((weights == weights.max()).sum().item()) == 1
