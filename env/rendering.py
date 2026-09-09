@@ -21,6 +21,8 @@ class PointReachRenderer:
         self._clock: Any | None = None
         self._owns_pygame_init = False
         self._owns_display_init = False
+        self._owns_window = False
+        self._restore_display_init = False
 
     def _load_pygame(self) -> Any:
         if self._pygame is None:
@@ -141,15 +143,24 @@ class PointReachRenderer:
             ).astype(np.uint8, copy=False)
 
         if self._window is None:
+            existing_surface = pygame.display.get_surface()
+            if existing_surface is not None:
+                raise RuntimeError(
+                    "human rendering refuses to replace an existing "
+                    "pygame display surface"
+                )
             if not pygame.get_init():
                 pygame.init()
                 self._owns_pygame_init = True
             elif not pygame.display.get_init():
                 pygame.display.init()
                 self._owns_display_init = True
+            else:
+                self._restore_display_init = True
             self._window = pygame.display.set_mode(
                 (WINDOW_WIDTH, WINDOW_HEIGHT)
             )
+            self._owns_window = True
             pygame.display.set_caption("PointReach2DPreference-v0")
             self._clock = pygame.time.Clock()
         self._window.blit(canvas, canvas.get_rect())
@@ -164,7 +175,13 @@ class PointReachRenderer:
                 self._pygame.quit()
             elif self._owns_display_init:
                 self._pygame.display.quit()
+            elif self._owns_window:
+                self._pygame.display.quit()
+                if self._restore_display_init:
+                    self._pygame.display.init()
         self._window = None
         self._clock = None
         self._owns_pygame_init = False
         self._owns_display_init = False
+        self._owns_window = False
+        self._restore_display_init = False

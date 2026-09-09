@@ -9,6 +9,22 @@ from env.config import DEFAULT_CONFIG
 from env.environment import PointReach2DPreferenceEnv
 
 
+def _import_pygame_without_dependency_warnings():
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="pkg_resources is deprecated as an API.*",
+            category=UserWarning,
+        )
+        warnings.filterwarnings(
+            "ignore",
+            message="Deprecated call to `pkg_resources.declare_namespace.*",
+            category=DeprecationWarning,
+        )
+        import pygame
+    return pygame
+
+
 def test_gym_registration_and_api():
     wrapped = gym.make("PointReach2DPreference-v0")
     observation, info = wrapped.reset(seed=7, options={"center_init": True})
@@ -145,15 +161,34 @@ def test_human_render_is_automatic_and_closes_owned_pygame(monkeypatch):
 
 def test_human_close_preserves_externally_initialized_pygame(monkeypatch):
     monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
-    import pygame
+    pygame = _import_pygame_without_dependency_warnings()
 
     pygame.init()
+    assert pygame.display.get_surface() is None
     instance = PointReach2DPreferenceEnv(render_mode="human")
     try:
         instance.reset(seed=0, options={"center_init": True})
+        assert pygame.display.get_surface() is not None
         instance.close()
 
         assert pygame.get_init() is True
+        assert pygame.display.get_init() is True
+        assert pygame.display.get_surface() is None
+    finally:
+        instance.close()
+        pygame.quit()
+
+
+def test_human_render_refuses_to_replace_external_display(monkeypatch):
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    pygame = _import_pygame_without_dependency_warnings()
+    pygame.init()
+    external_surface = pygame.display.set_mode((32, 32))
+    instance = PointReach2DPreferenceEnv(render_mode="human")
+    try:
+        with pytest.raises(RuntimeError, match="display surface"):
+            instance.reset(seed=0, options={"center_init": True})
+        assert pygame.display.get_surface() is external_surface
     finally:
         instance.close()
         pygame.quit()
