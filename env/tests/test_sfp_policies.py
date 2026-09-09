@@ -83,19 +83,27 @@ import sys
 try:
     import lzma
 except ModuleNotFoundError as error:
-    assert error.name == "_lzma"
+    if error.name != "_lzma":
+        raise
+    missing_lzma = True
 else:
-    raise AssertionError("the test runtime unexpectedly provides lzma")
+    missing_lzma = False
+    real_lzma = lzma
 
 import env.sfp_policies
 
-assert "lzma" not in sys.modules
-try:
-    import lzma
-except ModuleNotFoundError as error:
-    assert error.name == "_lzma"
+if missing_lzma:
+    assert "lzma" not in sys.modules
+    try:
+        import lzma
+    except ModuleNotFoundError as error:
+        if error.name != "_lzma":
+            raise
+    else:
+        raise AssertionError("policy import installed a fake lzma module")
 else:
-    raise AssertionError("policy import installed a fake lzma module")
+    assert sys.modules["lzma"] is real_lzma
+    assert real_lzma.decompress(real_lzma.compress(b"policy import")) == b"policy import"
 """
     completed = subprocess.run(
         [sys.executable, "-c", script],
