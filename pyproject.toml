@@ -23,7 +23,10 @@ dependencies = [
     # =========================================================================
     "mediapy",
     "opencv-python",
-    "drake",
+    # Drake 1.27+ requires glibc 2.35 or newer on Linux; this project supports
+    # manylinux_2_31 hosts as well. Drake 1.26 requires NumPy 1.x.
+    "numpy<2",
+    "drake<1.27",
     "matplotlib",
     "termcolor",
     "scipy",
