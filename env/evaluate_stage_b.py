@@ -34,6 +34,216 @@ class SFPDRollout:
     action_limit_failure: bool
     info: dict[str, Any]
 
+    def __post_init__(self) -> None:
+        if type(self.seed) is not int or self.seed < 0:
+            raise ValueError("seed must be a nonnegative integer")
+        if (
+            type(self.executed_action_count) is not int
+            or self.executed_action_count < 0
+        ):
+            raise ValueError("executed_action_count must be a nonnegative integer")
+        for name in (
+            "success",
+            "numerical_failure",
+            "action_limit_failure",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise ValueError(f"{name} must be a bool")
+        if type(self.info) is not dict:
+            raise ValueError("info must be a dict")
+
+        expected_arrays = {
+            "initial_observation": ((3,), "[3]"),
+            "executed_positions": (None, "[K + 1, 2]"),
+            "requested_actions": (None, "[K, 2]"),
+            "raw_predicted_chunks": (None, "[C, 9, 2]"),
+        }
+        for name, (shape, shape_text) in expected_arrays.items():
+            value = getattr(self, name)
+            if not isinstance(value, np.ndarray):
+                raise ValueError(
+                    f"{name} must be a float32 NumPy array with shape {shape_text}"
+                )
+            valid_shape = value.shape == shape if shape is not None else True
+            if name == "executed_positions":
+                valid_shape = value.ndim == 2 and value.shape[1:] == (2,)
+            elif name == "requested_actions":
+                valid_shape = value.ndim == 2 and value.shape[1:] == (2,)
+            elif name == "raw_predicted_chunks":
+                valid_shape = value.ndim == 3 and value.shape[1:] == (9, 2)
+            if (
+                value.dtype != np.float32
+                or not valid_shape
+            ):
+                raise ValueError(
+                    f"{name} must be a float32 NumPy array with shape {shape_text}"
+                )
+
+        action_count = self.executed_action_count
+        if len(self.requested_actions) != action_count:
+            raise ValueError(
+                "executed_action_count must match requested_actions length"
+            )
+        if len(self.executed_positions) != action_count + 1:
+            raise ValueError("executed_positions length must equal K + 1")
+        if not np.array_equal(
+            self.initial_observation[:2],
+            self.executed_positions[0],
+            equal_nan=True,
+        ):
+            raise ValueError(
+                "initial_observation position must match executed_positions[0]"
+            )
+
+        chunk_count = len(self.raw_predicted_chunks)
+        if chunk_count == 0:
+            valid_chunk_relationship = action_count == 0
+        else:
+            valid_chunk_relationship = (
+                8 * (chunk_count - 1) <= action_count <= 8 * chunk_count
+            )
+        if not valid_chunk_relationship:
+            raise ValueError("chunk count is inconsistent with action count")
+
+        required_info_counts = (
+            "action_attempt_count",
+            "step_index",
+            "action_limit_activation_count",
+        )
+        for key in required_info_counts:
+            value = self.info.get(key)
+            if type(value) is not int or value < 0:
+                raise ValueError(f"info {key} must be a nonnegative integer")
+        if self.info["action_attempt_count"] != action_count:
+            raise ValueError(
+                "info action_attempt_count must match executed_action_count"
+            )
+        if self.info["action_limit_activation_count"] > action_count:
+            raise ValueError("action_limit_activation_count cannot exceed K")
+
+        for key, expected in (
+            ("success", self.success),
+            ("numerical_failure", self.numerical_failure),
+            ("action_limit_failure", self.action_limit_failure),
+        ):
+            value = self.info.get(key)
+            if type(value) is not bool:
+                raise ValueError(f"info {key} must be a bool")
+            if value is not expected:
+                raise ValueError(f"info {key} must match rollout {key}")
+        if self.success and (
+            self.numerical_failure or self.action_limit_failure
+        ):
+            raise ValueError("success cannot be true when a failure flag is set")
+        if self.action_limit_failure != (
+            self.info["action_limit_activation_count"] > 0
+        ):
+            raise ValueError(
+                "action_limit_failure must match action_limit_activation_count"
+            )
+
+        accepted_transitions = sum(
+            np.array_equal(position, request)
+            for position, request in zip(
+                self.executed_positions[1:],
+                self.requested_actions,
+            )
+        )
+        if self.info["step_index"] != accepted_transitions:
+            raise ValueError("info step_index must match accepted transitions")
+        if action_count - accepted_transitions not in (0, 1):
+            raise ValueError("at most one terminal failed action is allowed")
+        if action_count > accepted_transitions:
+            failed_index = action_count - 1
+            if not all(
+                np.array_equal(position, request)
+                for position, request in zip(
+                    self.executed_positions[1:failed_index + 1],
+                    self.requested_actions[:failed_index],
+                )
+            ):
+                raise ValueError("accepted transitions must precede a failed action")
+            if not np.array_equal(
+                self.executed_positions[-1],
+                self.executed_positions[-2],
+                equal_nan=True,
+            ):
+                raise ValueError("a failed action must leave the state unchanged")
+
+        for key in (
+            "normalized_anchor_discrepancies",
+            "physical_anchor_discrepancies",
+        ):
+            if key not in self.info:
+                continue
+            value = self.info[key]
+            if (
+                not isinstance(value, np.ndarray)
+                or value.dtype != np.float32
+                or value.shape != (chunk_count,)
+            ):
+                raise ValueError(
+                    f"info {key} must be a float32 array with shape [C]"
+                )
+
+        has_nonfinite = not all(
+            np.isfinite(value).all()
+            for value in (
+                self.initial_observation,
+                self.executed_positions,
+                self.requested_actions,
+                self.raw_predicted_chunks,
+            )
+        )
+        if has_nonfinite and not self.numerical_failure:
+            raise ValueError(
+                "non-finite rollout arrays require numerical_failure=True"
+            )
+
+        gym_numerical_failure = self.info.get("gym_numerical_failure")
+        if type(gym_numerical_failure) is not bool:
+            raise ValueError("info gym_numerical_failure must be a bool")
+        policy_generation_failure = self.info.get(
+            "policy_generation_numerical_failure"
+        )
+        if type(policy_generation_failure) is not bool:
+            raise ValueError(
+                "info policy_generation_numerical_failure must be a bool"
+            )
+        nonfinite_chunk_indices = self.info.get(
+            "policy_generation_nonfinite_chunk_indices"
+        )
+        if (
+            type(nonfinite_chunk_indices) is not list
+            or any(
+                type(index) is not int or not 0 <= index < chunk_count
+                for index in nonfinite_chunk_indices
+            )
+            or nonfinite_chunk_indices != sorted(set(nonfinite_chunk_indices))
+        ):
+            raise ValueError(
+                "info policy generation nonfinite chunk indices are invalid"
+            )
+        observed_nonfinite_chunk_indices = [
+            index
+            for index, chunk in enumerate(self.raw_predicted_chunks)
+            if not np.isfinite(chunk).all()
+        ]
+        if (
+            nonfinite_chunk_indices != observed_nonfinite_chunk_indices
+            or policy_generation_failure != bool(nonfinite_chunk_indices)
+        ):
+            raise ValueError(
+                "policy generation nonfinite chunk indices must match "
+                "raw_predicted_chunks"
+            )
+        if self.numerical_failure != (
+            gym_numerical_failure or policy_generation_failure
+        ):
+            raise ValueError(
+                "rollout numerical_failure must match combined numerical_failure"
+            )
+
 
 @dataclass(frozen=True)
 class SFPDRolloutBatch:
@@ -81,6 +291,7 @@ def rollout_sfpd(
         predicted_chunks: list[np.ndarray] = []
         normalized_anchor_discrepancies: list[np.float32] = []
         physical_anchor_discrepancies: list[np.float32] = []
+        policy_generation_nonfinite_chunk_indices: list[int] = []
         terminated = False
         truncated = False
         device = _policy_device(policy)
@@ -111,6 +322,13 @@ def rollout_sfpd(
             )
             physical_chunk = unnormalize_actions(normalized_chunk, stats)
             predicted_chunks.append(physical_chunk.copy())
+            if not (
+                np.isfinite(normalized_chunk).all()
+                and np.isfinite(physical_chunk).all()
+            ):
+                policy_generation_nonfinite_chunk_indices.append(
+                    len(predicted_chunks) - 1
+                )
             normalized_anchor_discrepancies.append(
                 np.float32(
                     np.linalg.norm(
@@ -132,10 +350,27 @@ def rollout_sfpd(
                 if terminated or truncated:
                     break
 
+        gym_numerical_failure = bool(info["numerical_failure"])
+        policy_generation_numerical_failure = bool(
+            policy_generation_nonfinite_chunk_indices
+        )
+        numerical_failure = (
+            gym_numerical_failure or policy_generation_numerical_failure
+        )
+        success = bool(info["success"]) and not numerical_failure
         final_info = dict(info)
         final_info.update(
             terminated=bool(terminated),
             truncated=bool(truncated),
+            success=success,
+            numerical_failure=numerical_failure,
+            gym_numerical_failure=gym_numerical_failure,
+            policy_generation_numerical_failure=(
+                policy_generation_numerical_failure
+            ),
+            policy_generation_nonfinite_chunk_indices=list(
+                policy_generation_nonfinite_chunk_indices
+            ),
             normalized_anchor_discrepancies=np.asarray(
                 normalized_anchor_discrepancies,
                 dtype=np.float32,
@@ -159,8 +394,8 @@ def rollout_sfpd(
                 dtype=np.float32,
             ).reshape(-1, 9, 2),
             executed_action_count=len(requested_actions),
-            success=bool(info["success"]),
-            numerical_failure=bool(info["numerical_failure"]),
+            success=success,
+            numerical_failure=numerical_failure,
             action_limit_failure=bool(info["action_limit_failure"]),
             info=final_info,
         )
@@ -256,6 +491,8 @@ def aggregate_sfpd_metrics(
         batch,
         "physical_anchor_discrepancies",
     )
+    finite_normalized_anchor = normalized_anchor[np.isfinite(normalized_anchor)]
+    finite_physical_anchor = physical_anchor[np.isfinite(physical_anchor)]
     return {
         "rollout_count": rollout_count,
         "goal_success_count": int(sum(successes)),
@@ -279,16 +516,30 @@ def aggregate_sfpd_metrics(
             max(requested_step_maxima) if requested_step_maxima else None
         ),
         "normalized_anchor_discrepancy_mean": (
-            float(normalized_anchor.mean()) if len(normalized_anchor) else None
+            float(finite_normalized_anchor.mean())
+            if len(finite_normalized_anchor)
+            else None
         ),
         "normalized_anchor_discrepancy_max": (
-            float(normalized_anchor.max()) if len(normalized_anchor) else None
+            float(finite_normalized_anchor.max())
+            if len(finite_normalized_anchor)
+            else None
+        ),
+        "normalized_anchor_discrepancy_nonfinite_count": int(
+            len(normalized_anchor) - len(finite_normalized_anchor)
         ),
         "physical_anchor_discrepancy_mean": (
-            float(physical_anchor.mean()) if len(physical_anchor) else None
+            float(finite_physical_anchor.mean())
+            if len(finite_physical_anchor)
+            else None
         ),
         "physical_anchor_discrepancy_max": (
-            float(physical_anchor.max()) if len(physical_anchor) else None
+            float(finite_physical_anchor.max())
+            if len(finite_physical_anchor)
+            else None
+        ),
+        "physical_anchor_discrepancy_nonfinite_count": int(
+            len(physical_anchor) - len(finite_physical_anchor)
         ),
         "midpoint_classified_count": len(midpoint_positions),
         "failed_before_midpoint_count": len(failed_before_midpoint_indices),
