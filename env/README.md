@@ -22,6 +22,32 @@ returns reward 0.0; task success and goal error are reported through info.
 Episodes end after exactly 64 actions unless a NaN or infinite action causes a
 recorded numerical failure.
 
+### Rendering
+
+Both Gym 0.26 render modes are available. The human mode opens a pygame window
+and updates it automatically after reset and every step:
+
+~~~python
+instance = gym.make("PointReach2DPreference-v0", render_mode="human")
+observation, info = instance.reset(seed=0)
+observation, reward, terminated, truncated, info = instance.step(action)
+instance.close()
+~~~
+
+The array mode returns an RGB uint8 frame with shape `[520, 720, 3]`:
+
+~~~python
+instance = gym.make("PointReach2DPreference-v0", render_mode="rgb_array")
+observation, info = instance.reset(seed=0)
+frame = instance.render()
+~~~
+
+The four light reference curves represent the upper/lower narrow/wide modes.
+The dark line is the current episode trajectory, the purple dot is the current
+position, and the green circle is the goal tolerance. Rendering clips only the
+display coordinates at the configured visualization boundary; environment
+states and actions remain unbounded and unchanged.
+
 Gym 0.26 refers to the removed NumPy 2 name np.bool8. Importing env supplies the
 equivalent np.bool_ alias so Gym's standard checker and wrappers work in the
 repository's current uv environment.

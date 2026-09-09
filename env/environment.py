@@ -5,10 +5,14 @@ import numpy as np
 from gym import spaces
 
 from env.config import DEFAULT_CONFIG, EnvironmentConfig
+from env.rendering import PointReachRenderer
 
 
 class PointReach2DPreferenceEnv(gym.Env):
-    metadata = {"render_modes": []}
+    metadata = {
+        "render_modes": ["human", "rgb_array"],
+        "render_fps": 32,
+    }
     reward_range = (0.0, 0.0)
 
     def __init__(
@@ -16,8 +20,11 @@ class PointReach2DPreferenceEnv(gym.Env):
         config: EnvironmentConfig | None = None,
         render_mode: str | None = None,
     ) -> None:
-        if render_mode is not None:
-            raise ValueError("PointReach2DPreferenceEnv does not support rendering")
+        if render_mode not in (*self.metadata["render_modes"], None):
+            raise ValueError(
+                f"unsupported render_mode {render_mode!r}; expected "
+                "'human', 'rgb_array', or None"
+            )
         self.config = config or DEFAULT_CONFIG.environment
         self.render_mode = render_mode
         self.action_space = spaces.Box(
@@ -32,6 +39,8 @@ class PointReach2DPreferenceEnv(gym.Env):
             dtype=np.float32,
         )
         self._position = self.config.start_array()
+        self._trajectory = [self._position.copy()]
+        self._renderer: PointReachRenderer | None = None
         self._step_index = 0
         self._done = False
         self._numerical_failure = False
@@ -55,12 +64,17 @@ class PointReach2DPreferenceEnv(gym.Env):
                 size=2,
             ).astype(np.float32)
             self._position = self.config.start_array() + noise
+        self._trajectory = [self._position.copy()]
         self._step_index = 0
         self._done = False
         self._numerical_failure = False
         self._max_abs_x = float(abs(self._position[0]))
         self._max_abs_y = float(abs(self._position[1]))
-        return self._observation(), self._info()
+        observation = self._observation()
+        info = self._info()
+        if self.render_mode == "human":
+            self.render()
+        return observation, info
 
     def step(
         self,
@@ -76,14 +90,36 @@ class PointReach2DPreferenceEnv(gym.Env):
         if not np.isfinite(value).all():
             self._done = True
             self._numerical_failure = True
-            return self._observation(), 0.0, True, False, self._info()
+            observation = self._observation()
+            info = self._info()
+            if self.render_mode == "human":
+                self.render()
+            return observation, 0.0, True, False, info
 
         self._position = value.copy()
+        self._trajectory.append(self._position.copy())
         self._step_index += 1
         self._max_abs_x = max(self._max_abs_x, float(abs(value[0])))
         self._max_abs_y = max(self._max_abs_y, float(abs(value[1])))
         self._done = self._step_index == self.config.horizon_steps
-        return self._observation(), 0.0, self._done, False, self._info()
+        observation = self._observation()
+        info = self._info()
+        if self.render_mode == "human":
+            self.render()
+        return observation, 0.0, self._done, False, info
+
+    def render(self) -> np.ndarray | None:
+        if self.render_mode is None:
+            return None
+        if self._renderer is None:
+            self._renderer = PointReachRenderer(self.config)
+        trajectory = np.stack(self._trajectory).astype(np.float32, copy=False)
+        return self._renderer.render(trajectory, self.render_mode)
+
+    def close(self) -> None:
+        if self._renderer is not None:
+            self._renderer.close()
+            self._renderer = None
 
     def _observation(self) -> np.ndarray:
         normalized_time = np.float32(

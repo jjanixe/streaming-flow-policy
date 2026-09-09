@@ -83,3 +83,42 @@ def test_bad_action_shape_and_post_terminal_step_raise():
     instance.step(np.array([np.inf, 0.0], dtype=np.float32))
     with pytest.raises(RuntimeError, match="terminated"):
         instance.step(np.zeros(2, dtype=np.float32))
+
+
+def test_invalid_render_mode_is_rejected():
+    with pytest.raises(ValueError, match="render_mode"):
+        PointReach2DPreferenceEnv(render_mode="ansi")
+
+
+def test_rgb_array_render_has_stable_shape_and_tracks_episode():
+    instance = PointReach2DPreferenceEnv(render_mode="rgb_array")
+    try:
+        instance.reset(seed=0, options={"center_init": True})
+        initial_frame = instance.render()
+
+        assert initial_frame.shape == (520, 720, 3)
+        assert initial_frame.dtype == np.uint8
+        assert np.unique(initial_frame.reshape(-1, 3), axis=0).shape[0] > 4
+
+        instance.step(np.array([-0.5, 0.35], dtype=np.float32))
+        stepped_frame = instance.render()
+        assert not np.array_equal(stepped_frame, initial_frame)
+
+        instance.reset(seed=0, options={"center_init": True})
+        reset_frame = instance.render()
+        np.testing.assert_array_equal(reset_frame, initial_frame)
+    finally:
+        instance.close()
+
+
+def test_human_render_runs_with_headless_sdl(monkeypatch):
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    instance = PointReach2DPreferenceEnv(render_mode="human")
+    try:
+        instance.reset(seed=0, options={"center_init": True})
+        assert instance.render() is None
+        instance.step(np.array([-0.8, 0.1], dtype=np.float32))
+        assert instance.render() is None
+    finally:
+        instance.close()
+        instance.close()
