@@ -159,6 +159,56 @@ def _validate_architecture(architecture: object) -> dict[str, Any]:
     return architecture
 
 
+def _canonical_policy_state_schema(
+    architecture: Mapping[str, Any],
+) -> dict[str, tuple[tuple[int, ...], torch.dtype]]:
+    """Derive the exact wrapper state schema without changing caller RNG state."""
+    from env.models import SFPDVelocityMLP
+    from env.sfp_policies import StreamingFlowPolicyDeterministic
+
+    with torch.random.fork_rng(devices=[]):
+        policy = StreamingFlowPolicyDeterministic(
+            SFPDVelocityMLP(
+                hidden_dim=architecture["hidden_dim"],
+                hidden_layers=architecture["hidden_layers"],
+            ),
+            pred_horizon=architecture["pred_horizon"],
+            device="cpu",
+        )
+    return {
+        name: (tuple(value.shape), value.dtype)
+        for name, value in policy.state_dict().items()
+    }
+
+
+def _validate_checkpoint_state_schema(
+    state: Mapping[str, torch.Tensor],
+    schema: Mapping[str, tuple[tuple[int, ...], torch.dtype]],
+    name: str,
+) -> None:
+    actual_keys = set(state)
+    expected_keys = set(schema)
+    if actual_keys != expected_keys:
+        missing = sorted(expected_keys - actual_keys)
+        unexpected = sorted(actual_keys - expected_keys)
+        raise ValueError(
+            f"{name} state schema keys do not match "
+            f"(missing={missing}, unexpected={unexpected})"
+        )
+    for key, value in state.items():
+        expected_shape, expected_dtype = schema[key]
+        if tuple(value.shape) != expected_shape:
+            raise ValueError(
+                f"{name} state schema shape for {key!r} must be "
+                f"{expected_shape}, got {tuple(value.shape)}"
+            )
+        if value.dtype != expected_dtype:
+            raise ValueError(
+                f"{name} state schema dtype for {key!r} must be "
+                f"{expected_dtype}, got {value.dtype}"
+            )
+
+
 def load_sfpd_checkpoint(
     path: str | Path,
     *,
@@ -213,6 +263,9 @@ def load_sfpd_checkpoint(
     ema_state = _copy_checkpoint_state(payload["ema_state"], "ema_state")
     if raw_state.keys() != ema_state.keys():
         raise ValueError("raw and EMA checkpoint states must have identical keys")
+    canonical_schema = _canonical_policy_state_schema(architecture)
+    _validate_checkpoint_state_schema(raw_state, canonical_schema, "raw_state")
+    _validate_checkpoint_state_schema(ema_state, canonical_schema, "ema_state")
     return {
         "raw_state": raw_state,
         "ema_state": ema_state,

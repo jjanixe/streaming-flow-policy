@@ -7,6 +7,7 @@ from env.chunk_data import fit_pusht_stats
 from env.config import DEFAULT_CONFIG
 from env.demonstrations import generate_demonstration_bank
 from env.models import SFPDVelocityMLP
+from env.sfp_policies import StreamingFlowPolicyDeterministic
 from env.stage_b_artifacts import (
     CHECKPOINT_FORMAT_VERSION,
     load_pusht_stats,
@@ -37,6 +38,12 @@ def _complete_metadata(**overrides):
     }
     metadata.update(overrides)
     return metadata
+
+
+def _policy_state(hidden_dim=16, hidden_layers=1):
+    return StreamingFlowPolicyDeterministic(
+        SFPDVelocityMLP(hidden_dim=hidden_dim, hidden_layers=hidden_layers)
+    ).state_dict()
 
 
 def test_pusht_stats_round_trip_without_pickle(tmp_path):
@@ -128,14 +135,16 @@ def test_checkpoint_requires_all_metadata_and_can_match_exact_architecture(tmp_p
 
 
 def test_checkpoint_round_trip_keeps_finite_float32_weights_on_cpu(tmp_path):
-    model = SFPDVelocityMLP(hidden_dim=16, hidden_layers=1)
+    state = _policy_state()
     checkpoint = tmp_path / "nested" / "model.pt"
     save_sfpd_checkpoint(
         checkpoint,
-        raw_state=model.state_dict(),
-        ema_state=model.state_dict(),
+        raw_state=state,
+        ema_state=state,
         metadata=_complete_metadata(),
     )
+    torch.manual_seed(734)
+    rng_before_load = torch.random.get_rng_state().clone()
 
     loaded = load_sfpd_checkpoint(
         checkpoint,
@@ -143,6 +152,7 @@ def test_checkpoint_round_trip_keeps_finite_float32_weights_on_cpu(tmp_path):
         expected_architecture=_complete_metadata()["architecture"],
     )
 
+    assert torch.equal(rng_before_load, torch.random.get_rng_state())
     assert loaded["metadata"]["model_type"] == "sfpd"
     for state_name in ("raw_state", "ema_state"):
         for value in loaded[state_name].values():
@@ -150,3 +160,51 @@ def test_checkpoint_round_trip_keeps_finite_float32_weights_on_cpu(tmp_path):
                 assert value.dtype == torch.float32
                 assert torch.isfinite(value).all()
             assert value.device.type == "cpu"
+
+
+def test_checkpoint_rejects_state_shape_that_disagrees_with_declared_hidden_dim(
+    tmp_path,
+):
+    declared_16_but_actual_32 = _policy_state(hidden_dim=32)
+    checkpoint = tmp_path / "mismatched_hidden_dim.pt"
+    save_sfpd_checkpoint(
+        checkpoint,
+        raw_state=declared_16_but_actual_32,
+        ema_state=declared_16_but_actual_32,
+        metadata=_complete_metadata(),
+    )
+
+    with pytest.raises(ValueError, match="state schema"):
+        load_sfpd_checkpoint(
+            checkpoint,
+            expected_train_data_digest="correct",
+        )
+
+
+@pytest.mark.parametrize(
+    "corruption",
+    ["bare_velocity", "unexpected_key", "missing_key", "wrong_buffer_dtype"],
+)
+def test_checkpoint_rejects_noncanonical_wrapper_state(tmp_path, corruption):
+    state = dict(_policy_state())
+    if corruption == "bare_velocity":
+        state = dict(SFPDVelocityMLP(hidden_dim=16, hidden_layers=1).state_dict())
+    elif corruption == "unexpected_key":
+        state["unexpected"] = torch.zeros(1, dtype=torch.float32)
+    elif corruption == "missing_key":
+        del state["velocity_net.network.0.bias"]
+    else:
+        state["pred_horizon"] = state["pred_horizon"].to(torch.int64)
+    checkpoint = tmp_path / f"{corruption}.pt"
+    save_sfpd_checkpoint(
+        checkpoint,
+        raw_state=state,
+        ema_state=state,
+        metadata=_complete_metadata(),
+    )
+
+    with pytest.raises(ValueError, match="state schema"):
+        load_sfpd_checkpoint(
+            checkpoint,
+            expected_train_data_digest="correct",
+        )
