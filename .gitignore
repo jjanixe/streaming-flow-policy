@@ -151,6 +151,9 @@ venv.bak/
 # Stage A toy environment outputs
 /env/artifacts/
 
+# Local Git worktrees
+/.worktrees/
+
 # Spyder project settings
 .spyderproject
 .spyproject
