@@ -100,6 +100,44 @@ saturates at the smallest finite float32 value. Its Torch action gradient still
 uses the analytic score, and mixture responsibilities remain finite, normalized,
 and correctly ordered.
 
+### Stage B1: PushT-compatible deterministic SFPD
+
+First generate the saved demonstration artifact if it does not already exist:
+
+~~~bash
+uv run python -m env.run_stage_a --output-dir env/artifacts --seed 0
+~~~
+
+Run the full seeded experiment:
+
+~~~bash
+uv run python -m env.run_stage_b \
+  --stage b1 \
+  --demonstrations env/artifacts/demonstrations.npz \
+  --output-dir env/artifacts/stage_b/b1-seed0 \
+  --seed 0 \
+  --device cpu \
+  --max-updates 20000 \
+  --rollout-count 1024 \
+  --integration-steps-per-action 6 \
+  --enforce-acceptance
+~~~
+
+The runner always loads the named demonstration artifact; it never silently
+regenerates data. The dataset uses next-position actions, train-only `[-1, 1]`
+normalization, PushT 16/2/8 windows, and actual Drake FirstOrderHold targets.
+Drake evaluates in float64 internally; every learned quantity is float32.
+
+The output directory contains the resolved configuration and seed streams,
+train-only normalization statistics, the selected best-EMA checkpoint,
+training history, held-out/Gaussian/centered diagnostics, pickle-free padded
+Gaussian and centered rollout NPZ files, trajectory and occupancy PNGs, and a
+representative success and/or failure GIF whenever that outcome occurs. Each
+rollout NPZ stores its checkpoint SHA-256 and train-demonstration digest, raw
+nine-position chunks, explicit lengths and validity masks, and failure masks.
+The PNGs and GIFs use the same world bounds and actual RGB-array renderer as the
+Gym environment.
+
 ## Tests
 
 ~~~bash

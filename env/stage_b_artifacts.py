@@ -15,6 +15,7 @@ from env.chunk_data import PushTStats
 
 
 CHECKPOINT_FORMAT_VERSION = 1
+ROLLOUT_FORMAT_VERSION = 1
 REQUIRED_METADATA = {
     "format_version",
     "model_type",
@@ -79,6 +80,95 @@ def load_pusht_stats(path: str | Path) -> tuple[PushTStats, str]:
         )
         digest = _require_digest(str(digest_array.item()))
     return stats, digest
+
+
+def _padded_float32(
+    arrays: list[np.ndarray],
+    trailing_shape: tuple[int, ...],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    lengths = np.asarray([len(value) for value in arrays], dtype=np.int64)
+    maximum = int(lengths.max())
+    padded = np.full(
+        (len(arrays), maximum, *trailing_shape),
+        np.nan,
+        dtype=np.float32,
+    )
+    mask = np.zeros((len(arrays), maximum), dtype=np.bool_)
+    for index, value in enumerate(arrays):
+        length = len(value)
+        padded[index, :length] = value
+        mask[index, :length] = True
+    return padded, lengths, mask
+
+
+def save_sfpd_rollouts(
+    path: str | Path,
+    batch: object,
+    *,
+    checkpoint_digest: str,
+    train_data_digest: str,
+) -> None:
+    """Save variable-length SFPD rollouts as numeric, pickle-free arrays."""
+    from env.evaluate_stage_b import SFPDRolloutBatch
+
+    if not isinstance(batch, SFPDRolloutBatch):
+        raise ValueError("batch must be an SFPDRolloutBatch")
+    checkpoint_hash = _require_digest(checkpoint_digest)
+    train_hash = _require_digest(train_data_digest)
+    rollouts = batch.rollouts
+    executed, executed_lengths, executed_mask = _padded_float32(
+        [rollout.executed_positions for rollout in rollouts],
+        (2,),
+    )
+    requested, requested_lengths, requested_mask = _padded_float32(
+        [rollout.requested_actions for rollout in rollouts],
+        (2,),
+    )
+    chunks, chunk_lengths, chunk_mask = _padded_float32(
+        [rollout.raw_predicted_chunks for rollout in rollouts],
+        (9, 2),
+    )
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(
+        destination,
+        format_version=np.asarray(ROLLOUT_FORMAT_VERSION, dtype=np.int64),
+        model_type=np.asarray("sfpd", dtype=np.str_),
+        rollout_seeds=np.asarray(
+            [rollout.seed for rollout in rollouts],
+            dtype=np.uint64,
+        ),
+        initial_observations=np.stack(
+            [rollout.initial_observation for rollout in rollouts]
+        ).astype(np.float32, copy=False),
+        executed_positions=executed,
+        executed_position_lengths=executed_lengths,
+        executed_position_mask=executed_mask,
+        requested_actions=requested,
+        requested_action_lengths=requested_lengths,
+        requested_action_mask=requested_mask,
+        raw_predicted_chunks=chunks,
+        raw_predicted_chunk_lengths=chunk_lengths,
+        raw_predicted_chunk_mask=chunk_mask,
+        success_mask=np.asarray(
+            [rollout.success for rollout in rollouts],
+            dtype=np.bool_,
+        ),
+        numerical_failure_mask=np.asarray(
+            [rollout.numerical_failure for rollout in rollouts],
+            dtype=np.bool_,
+        ),
+        action_limit_failure_mask=np.asarray(
+            [rollout.action_limit_failure for rollout in rollouts],
+            dtype=np.bool_,
+        ),
+        failure_mask=np.asarray(
+            [not rollout.success for rollout in rollouts],
+            dtype=np.bool_,
+        ),
+        checkpoint_digest=np.asarray(checkpoint_hash, dtype=np.str_),
+        train_data_digest=np.asarray(train_hash, dtype=np.str_),
+    )
 
 
 def _validate_portable_metadata(value: object, path: str = "metadata") -> None:
