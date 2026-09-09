@@ -53,6 +53,7 @@ if TYPE_CHECKING:
 
 RUN_FORMAT_VERSION = 1
 ENVIRONMENT_ID = "PointReach2DPreference-v0"
+UINT32_SEED_SPACE_SIZE = 2**32
 
 
 def derive_rollout_seeds(root_seed: int, count: int) -> list[int]:
@@ -61,10 +62,17 @@ def derive_rollout_seeds(root_seed: int, count: int) -> list[int]:
         raise ValueError("root_seed must be a nonnegative integer")
     if type(count) is not int or count <= 0:
         raise ValueError("count must be a positive integer")
-    return [
-        int(child.generate_state(1, dtype=np.uint32)[0])
-        for child in np.random.SeedSequence(root_seed).spawn(count)
-    ]
+    if count > UINT32_SEED_SPACE_SIZE:
+        raise ValueError("count exceeds the uint32 seed space capacity")
+    result: list[int] = []
+    used: set[int] = set()
+    for child in np.random.SeedSequence(root_seed).spawn(count):
+        seed = int(child.generate_state(1, dtype=np.uint32)[0])
+        while seed in used:
+            seed = (seed + 1) % UINT32_SEED_SPACE_SIZE
+        used.add(seed)
+        result.append(seed)
+    return result
 
 
 def _checkpoint_digest(path: str | Path) -> str:

@@ -6,7 +6,6 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-import imageio.v2 as imageio
 import numpy as np
 
 from env.config import EnvironmentConfig
@@ -26,6 +25,7 @@ MODE_COLORS = {
     "lower-narrow": "#f4a667",
     "lower-wide": "#cc5b43",
     "other": "#777b85",
+    "failed-before-midpoint": "#8f949e",
 }
 
 
@@ -46,6 +46,12 @@ def _mode_from_position(position: np.ndarray) -> str:
     width = "wide" if abs(y) >= 0.40 else "narrow"
     vertical = "upper" if y > 0.0 else "lower"
     return f"{vertical}-{width}"
+
+
+def _rollout_display_mode(rollout: SFPDRollout) -> str:
+    if rollout.info["step_index"] < 32:
+        return "failed-before-midpoint"
+    return _mode_from_position(rollout.executed_positions[32])
 
 
 def _require_expert_positions(expert_positions: np.ndarray) -> np.ndarray:
@@ -115,8 +121,7 @@ def plot_trajectory_comparison(
 
         for rollout in rollout_batch.rollouts:
             positions = rollout.executed_positions
-            mode_position = positions[32] if len(positions) > 32 else positions[-1]
-            mode = _mode_from_position(mode_position)
+            mode = _rollout_display_mode(rollout)
             axes[1].plot(
                 positions[:, 0],
                 positions[:, 1],
@@ -141,10 +146,10 @@ def plot_trajectory_comparison(
         figure.legend(
             handles=[
                 patch(facecolor=MODE_COLORS[name], label=name)
-                for name in (*MODE_NAMES, "other")
+                for name in (*MODE_NAMES, "other", "failed-before-midpoint")
             ],
             loc="outside lower center",
-            ncol=5,
+            ncol=6,
             frameon=False,
         )
         figure.savefig(destination, dpi=150)
@@ -265,6 +270,8 @@ def write_representative_gifs(
         raise ValueError("rollout_batch must be an SFPDRolloutBatch")
     destination = Path(output_dir)
     destination.mkdir(parents=True, exist_ok=True)
+    for label in ("success", "failure"):
+        (destination / f"representative_{label}.gif").unlink(missing_ok=True)
     representatives = {
         "success": next(
             (rollout for rollout in rollout_batch.rollouts if rollout.success),
@@ -275,6 +282,8 @@ def write_representative_gifs(
             None,
         ),
     }
+    import mediapy as media
+
     written: dict[str, Path] = {}
     for label, rollout in representatives.items():
         if rollout is None:
@@ -285,12 +294,11 @@ def write_representative_gifs(
             center_init=center_init,
         )
         path = destination / f"representative_{label}.gif"
-        imageio.mimsave(
+        media.write_video(
             path,
             frames,
-            format="GIF",
-            duration=1.0 / PointReach2DPreferenceEnv.metadata["render_fps"],
-            loop=0,
+            fps=PointReach2DPreferenceEnv.metadata["render_fps"],
+            codec="gif",
         )
         written[label] = path
     return written

@@ -8,15 +8,22 @@ import numpy as np
 import pytest
 import torch
 
+import env.run_stage_b as run_stage_b_module
 from env.artifacts import train_data_digest
 from env.chunk_data import fit_pusht_stats, normalize_actions
 from env.config import DEFAULT_CONFIG
 from env.demonstrations import generate_demonstration_bank
-from env.evaluate_stage_b import SFPDRolloutBatch, rollout_sfpd
+from env.evaluate_stage_b import SFPDRollout, SFPDRolloutBatch, rollout_sfpd
 from env.run_stage_b import derive_rollout_seeds, load_trained_sfpd, run_stage_b1
 from env.stage_b_artifacts import load_sfpd_checkpoint, save_sfpd_rollouts
 from env.stage_b_config import DEFAULT_STAGE_B1_CONFIG
-from env.visualize_stage_b import plot_mode_occupancy, plot_trajectory_comparison
+from env.visualize_stage_b import (
+    MODE_COLORS,
+    _rollout_display_mode,
+    plot_mode_occupancy,
+    plot_trajectory_comparison,
+    write_representative_gifs,
+)
 
 
 def _small_bank(seed: int):
@@ -188,7 +195,7 @@ def test_rollout_npz_padding_is_explicit_and_pickle_free(tmp_path):
         assert not any(payload[name].dtype.hasobject for name in payload.files)
 
 
-def test_rollout_seed_derivation_is_stable_and_validated():
+def test_rollout_seed_derivation_is_stable_and_validated(monkeypatch):
     assert derive_rollout_seeds(123, 3) == [
         1514383052,
         2306788707,
@@ -198,6 +205,43 @@ def test_rollout_seed_derivation_is_stable_and_validated():
         derive_rollout_seeds(True, 3)
     with pytest.raises(ValueError, match="positive integer"):
         derive_rollout_seeds(123, 0)
+    seeds = derive_rollout_seeds(456, 1024)
+    assert len(set(seeds)) == len(seeds)
+
+    class _MustNotConstructSeedSequence:
+        def __init__(self, seed):
+            raise AssertionError("capacity must be checked before seed spawning")
+
+    monkeypatch.setattr(
+        run_stage_b_module.np.random,
+        "SeedSequence",
+        _MustNotConstructSeedSequence,
+    )
+    with pytest.raises(ValueError, match="uint32 seed space"):
+        derive_rollout_seeds(123, 2**32 + 1)
+
+
+def test_rollout_seed_derivation_resolves_child_collisions(monkeypatch):
+    class _CollidingChild:
+        def generate_state(self, count, dtype):
+            assert count == 1
+            assert dtype == np.uint32
+            return np.array([7], dtype=np.uint32)
+
+    class _CollidingSeedSequence:
+        def __init__(self, seed):
+            assert seed == 123
+
+        def spawn(self, count):
+            return [_CollidingChild() for _ in range(count)]
+
+    monkeypatch.setattr(
+        run_stage_b_module.np.random,
+        "SeedSequence",
+        _CollidingSeedSequence,
+    )
+
+    assert derive_rollout_seeds(123, 3) == [7, 8, 9]
 
 
 @pytest.mark.parametrize(
@@ -265,6 +309,101 @@ def test_static_plots_close_figures_and_reject_nonfinite_experts(tmp_path):
             batch,
             DEFAULT_CONFIG.environment,
         )
+
+
+def test_failed_attempt_after_31_transitions_has_no_midpoint_mode():
+    bank = _small_bank(seed=49)
+    positions = bank.select("test").positions[0]
+    invalid = positions[31] + np.array([0.2, 0.0], dtype=np.float32)
+    requested = np.concatenate((positions[1:32], invalid[None]), axis=0)
+    executed = np.concatenate((positions[:32], positions[[31]]), axis=0)
+    chunks = np.repeat(positions[[0]][None], 4 * 9, axis=1).reshape(4, 9, 2)
+    for chunk_index in range(4):
+        start = chunk_index * 8
+        chunks[chunk_index, 0] = positions[start]
+        chunks[chunk_index, 1:] = requested[start : start + 8]
+    rollout = SFPDRollout(
+        seed=50,
+        initial_observation=np.array(
+            [positions[0, 0], positions[0, 1], 0.0], dtype=np.float32
+        ),
+        executed_positions=executed.astype(np.float32),
+        requested_actions=requested.astype(np.float32),
+        raw_predicted_chunks=chunks.astype(np.float32),
+        executed_action_count=32,
+        success=False,
+        numerical_failure=False,
+        action_limit_failure=True,
+        info={
+            "action_attempt_count": 32,
+            "step_index": 31,
+            "action_limit_activation_count": 1,
+            "max_requested_step_distance": 0.2,
+            "success": False,
+            "numerical_failure": False,
+            "action_limit_failure": True,
+            "gym_numerical_failure": False,
+            "policy_generation_numerical_failure": False,
+            "policy_generation_nonfinite_chunk_indices": [],
+            "normalized_anchor_discrepancies": np.zeros(4, dtype=np.float32),
+            "physical_anchor_discrepancies": np.zeros(4, dtype=np.float32),
+        },
+    )
+
+    assert len(rollout.executed_positions) == 33
+    assert _rollout_display_mode(rollout) == "failed-before-midpoint"
+    assert MODE_COLORS["failed-before-midpoint"] == "#8f949e"
+
+
+def test_representative_gif_rerun_removes_stale_outcome_labels(tmp_path):
+    bank = _small_bank(seed=51)
+    stats = fit_pusht_stats(bank)
+    expert = bank.select("test").positions[0]
+    successful = rollout_sfpd(
+        _ScriptedPolicy(normalize_actions(expert, stats)),
+        stats,
+        DEFAULT_CONFIG.environment,
+        seed=52,
+        center_init=True,
+        integration_steps_per_action=1,
+    )
+    anchor = DEFAULT_CONFIG.environment.start_array()
+    failed_chunk = np.repeat(anchor[None], 9, axis=0)
+    failed_chunk[1] = anchor + np.array([0.2, 0.0], dtype=np.float32)
+    failed = rollout_sfpd(
+        _SingleChunkPolicy(normalize_actions(failed_chunk, stats)),
+        stats,
+        DEFAULT_CONFIG.environment,
+        seed=53,
+        center_init=True,
+        integration_steps_per_action=1,
+    )
+    success_path = tmp_path / "representative_success.gif"
+    failure_path = tmp_path / "representative_failure.gif"
+    success_path.write_bytes(b"stale-success")
+    failure_path.write_bytes(b"stale-failure")
+
+    first = write_representative_gifs(
+        tmp_path,
+        SFPDRolloutBatch.from_rollouts((failed,)),
+        DEFAULT_CONFIG.environment,
+        center_init=True,
+    )
+
+    assert set(first) == {"failure"}
+    assert not success_path.exists()
+    assert failure_path.read_bytes().startswith((b"GIF87a", b"GIF89a"))
+
+    second = write_representative_gifs(
+        tmp_path,
+        SFPDRolloutBatch.from_rollouts((successful,)),
+        DEFAULT_CONFIG.environment,
+        center_init=True,
+    )
+
+    assert set(second) == {"success"}
+    assert success_path.read_bytes().startswith((b"GIF87a", b"GIF89a"))
+    assert not failure_path.exists()
 
 
 def test_stage_b_cli_help_and_stage_validation():
