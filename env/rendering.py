@@ -149,10 +149,12 @@ class PointReachRenderer:
                     "human rendering refuses to replace an existing "
                     "pygame display surface"
                 )
-            if not pygame.get_init():
+            pygame_initialized = pygame.get_init()
+            display_initialized = pygame.display.get_init()
+            if not pygame_initialized and not display_initialized:
                 pygame.init()
                 self._owns_pygame_init = True
-            elif not pygame.display.get_init():
+            elif not display_initialized:
                 pygame.display.init()
                 self._owns_display_init = True
             else:

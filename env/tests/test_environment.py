@@ -192,3 +192,23 @@ def test_human_render_refuses_to_replace_external_display(monkeypatch):
     finally:
         instance.close()
         pygame.quit()
+
+
+def test_human_close_preserves_external_display_only_init(monkeypatch):
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    pygame = _import_pygame_without_dependency_warnings()
+    pygame.quit()
+    pygame.display.init()
+    assert pygame.get_init() is False
+    assert pygame.display.get_init() is True
+    instance = PointReach2DPreferenceEnv(render_mode="human")
+    try:
+        instance.reset(seed=0, options={"center_init": True})
+        instance.close()
+
+        assert pygame.get_init() is False
+        assert pygame.display.get_init() is True
+        assert pygame.display.get_surface() is None
+    finally:
+        instance.close()
+        pygame.display.quit()
