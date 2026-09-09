@@ -1,3 +1,7 @@
+import copy
+from dataclasses import replace
+from pathlib import Path
+
 import numpy as np
 import pytest
 import torch
@@ -15,6 +19,33 @@ from env.stage_b_artifacts import (
     save_pusht_stats,
     save_sfpd_checkpoint,
 )
+from env.stage_b_config import DEFAULT_STAGE_B1_CONFIG, stage_b1_config_to_dict
+
+
+_TEST_CONFIG = replace(
+    DEFAULT_STAGE_B1_CONFIG,
+    hidden_dim=16,
+    hidden_layers=1,
+    max_updates=4,
+    validation_interval=2,
+    warmup_updates=1,
+)
+_SEED_STREAM_NAMES = (
+    "model_initialization",
+    "dataloader_shuffle",
+    "train_transform",
+    "validation_transform",
+    "rollout_initialization",
+    "checkpoint_replay",
+)
+
+
+def _expected_seed_streams(root_seed):
+    children = np.random.SeedSequence(root_seed).spawn(len(_SEED_STREAM_NAMES))
+    return {
+        name: int(child.generate_state(1, dtype=np.uint32)[0])
+        for name, child in zip(_SEED_STREAM_NAMES, children)
+    }
 
 
 def _complete_metadata(**overrides):
@@ -27,14 +58,29 @@ def _complete_metadata(**overrides):
             "hidden_layers": 1,
             "pred_horizon": 16,
         },
-        "stage_b1_config": {"pred_horizon": 16},
+        "stage_b1_config": stage_b1_config_to_dict(_TEST_CONFIG),
         "selected_update": 2,
         "validation_loss": 0.25,
         "root_seed": 23,
-        "seed_streams": {"model_initialization": 123},
+        "seed_streams": _expected_seed_streams(23),
         "train_data_digest": "correct",
         "drake_version": "1.26.0",
         "numpy_version": "1.26.4",
+        "torch_version": "2.7.1+cu126",
+        "optimizer": {
+            "name": "AdamW",
+            "learning_rate": 1e-4,
+            "weight_decay": 1e-6,
+            "warmup_updates": 1,
+            "schedule": "linear_warmup_cosine",
+        },
+        "solver": {
+            "name": "dopri5",
+            "sensitivity": "adjoint",
+            "atol": 1e-4,
+            "rtol": 1e-4,
+            "integration_steps_per_action": 6,
+        },
     }
     metadata.update(overrides)
     return metadata
@@ -208,3 +254,116 @@ def test_checkpoint_rejects_noncanonical_wrapper_state(tmp_path, corruption):
             checkpoint,
             expected_train_data_digest="correct",
         )
+
+
+@pytest.mark.parametrize("missing", ["torch_version", "optimizer", "solver"])
+def test_checkpoint_requires_runtime_optimizer_and_solver_metadata(tmp_path, missing):
+    metadata = _complete_metadata()
+    del metadata[missing]
+    checkpoint = tmp_path / f"missing_{missing}.pt"
+    state = _policy_state()
+    save_sfpd_checkpoint(
+        checkpoint,
+        raw_state=state,
+        ema_state=state,
+        metadata=metadata,
+    )
+
+    with pytest.raises(ValueError, match="missing keys"):
+        load_sfpd_checkpoint(checkpoint, expected_train_data_digest="correct")
+
+
+@pytest.mark.parametrize(
+    "case,match",
+    [
+        ("empty_version", "version"),
+        ("root_seed_bool", "root_seed"),
+        ("seed_names", "seed_streams"),
+        ("seed_out_of_range", "seed_streams"),
+        ("seed_wrong_value", "seed_streams"),
+        ("config_missing", "stage_b1_config"),
+        ("config_wrong_type", "max_updates"),
+        ("architecture_mismatch", "architecture"),
+        ("optimizer_mismatch", "optimizer"),
+        ("solver_mismatch", "solver"),
+        ("selected_update_out_of_range", "selected_update"),
+    ],
+)
+def test_checkpoint_rejects_semantically_corrupt_metadata(tmp_path, case, match):
+    metadata = copy.deepcopy(_complete_metadata())
+    if case == "empty_version":
+        metadata["torch_version"] = ""
+    elif case == "root_seed_bool":
+        metadata["root_seed"] = True
+    elif case == "seed_names":
+        metadata["seed_streams"].pop("checkpoint_replay")
+    elif case == "seed_out_of_range":
+        metadata["seed_streams"]["checkpoint_replay"] = 2**32
+    elif case == "seed_wrong_value":
+        metadata["seed_streams"]["checkpoint_replay"] ^= 1
+    elif case == "config_missing":
+        metadata["stage_b1_config"].pop("sigma")
+    elif case == "config_wrong_type":
+        metadata["stage_b1_config"]["max_updates"] = True
+    elif case == "architecture_mismatch":
+        metadata["architecture"]["hidden_dim"] = 32
+    elif case == "optimizer_mismatch":
+        metadata["optimizer"]["learning_rate"] = 2e-4
+    elif case == "solver_mismatch":
+        metadata["solver"]["integration_steps_per_action"] = 5
+    else:
+        metadata["selected_update"] = 5
+    checkpoint = tmp_path / f"semantic_{case}.pt"
+    state = _policy_state()
+    save_sfpd_checkpoint(
+        checkpoint,
+        raw_state=state,
+        ema_state=state,
+        metadata=metadata,
+    )
+
+    with pytest.raises(ValueError, match=match):
+        load_sfpd_checkpoint(checkpoint, expected_train_data_digest="correct")
+
+
+@pytest.mark.parametrize("state_name", ["raw_state", "ema_state"])
+@pytest.mark.parametrize(
+    "buffer_name",
+    ["pred_horizon", "velocity_net.time_features.frequencies"],
+)
+def test_checkpoint_rejects_corrupt_immutable_canonical_buffers(
+    tmp_path,
+    state_name,
+    buffer_name,
+):
+    raw_state = dict(_policy_state())
+    ema_state = {name: value.clone() for name, value in raw_state.items()}
+    target = raw_state if state_name == "raw_state" else ema_state
+    target[buffer_name] = target[buffer_name].clone()
+    target[buffer_name].reshape(-1)[0] += 1
+    checkpoint = tmp_path / f"{state_name}_{buffer_name.replace('.', '_')}.pt"
+    save_sfpd_checkpoint(
+        checkpoint,
+        raw_state=raw_state,
+        ema_state=ema_state,
+        metadata=_complete_metadata(),
+    )
+
+    with pytest.raises(ValueError, match="immutable buffer"):
+        load_sfpd_checkpoint(checkpoint, expected_train_data_digest="correct")
+
+
+def test_existing_canonical_checkpoint_remains_compatible():
+    artifact_dir = Path(__file__).parents[1] / "artifacts" / "stage_b" / "b1-seed0"
+    checkpoint = artifact_dir / "sfpd_best.pt"
+    stats_path = artifact_dir / "pusht_stats.npz"
+    if not checkpoint.is_file() or not stats_path.is_file():
+        pytest.skip("canonical Stage B1 artifacts are not present")
+    _, digest = load_pusht_stats(stats_path)
+
+    loaded = load_sfpd_checkpoint(
+        checkpoint,
+        expected_train_data_digest=digest,
+    )
+
+    assert loaded["metadata"]["selected_update"] == 20_000

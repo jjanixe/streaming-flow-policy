@@ -112,6 +112,7 @@ class PushTChunkDataset(torch.utils.data.Dataset):
 
         self.stats = stats
         self.transform = transform
+        self.source_split = split
         self.trajectory_ids = selected.trajectory_ids
         self.episodes = []
         for positions in selected.positions:
@@ -169,6 +170,7 @@ class PushTChunkDataset(torch.utils.data.Dataset):
             "obs": obs_window,
             "action": action_window,
             "trajectory_id": str(self.trajectory_ids[trajectory_index]),
+            "source_split": self.source_split,
             "sequence_start": np.int64(sequence_start),
             "anchor_index": np.int64(sequence_start + 1),
             "pad_before": np.int64(sample_start),

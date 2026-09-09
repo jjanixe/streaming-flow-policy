@@ -92,8 +92,8 @@ def _require_finite_float32_state(
 
 
 def _derive_seed_streams(root_seed: int) -> dict[str, int]:
-    if not isinstance(root_seed, int) or isinstance(root_seed, bool) or root_seed < 0:
-        raise ValueError("root_seed must be a nonnegative integer")
+    if type(root_seed) is not int or not 0 <= root_seed <= np.iinfo(np.uint32).max:
+        raise ValueError("root_seed must be a uint32-range integer")
     children = np.random.SeedSequence(root_seed).spawn(len(SEED_STREAM_NAMES))
     return {
         name: int(child.generate_state(1, dtype=np.uint32)[0])

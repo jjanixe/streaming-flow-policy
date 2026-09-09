@@ -174,17 +174,55 @@ def _validated_occupancy(
     return result
 
 
+def _occupancy_plot_data(
+    expert_occupancy: Mapping[str, float],
+    sfpd_occupancy: Mapping[str, float],
+    *,
+    sfpd_classified_count: int,
+    sfpd_rollout_count: int,
+) -> tuple[tuple[str, ...], tuple[float, ...], tuple[float, ...], str]:
+    """Build plot values while making the two occupancy denominators explicit."""
+    expert = _validated_occupancy(expert_occupancy, "expert_occupancy")
+    sfpd = _validated_occupancy(sfpd_occupancy, "sfpd_occupancy")
+    if type(sfpd_classified_count) is not int or sfpd_classified_count < 0:
+        raise ValueError("sfpd_classified_count must be a nonnegative integer")
+    if type(sfpd_rollout_count) is not int or sfpd_rollout_count <= 0:
+        raise ValueError("sfpd_rollout_count must be a positive integer")
+    if sfpd_classified_count > sfpd_rollout_count:
+        raise ValueError("sfpd_classified_count cannot exceed sfpd_rollout_count")
+    labels = (*MODE_NAMES, "other", "failed-before-midpoint")
+    failed_share = (
+        sfpd_rollout_count - sfpd_classified_count
+    ) / sfpd_rollout_count
+    expert_values = tuple(expert[mode] for mode in (*MODE_NAMES, "other")) + (0.0,)
+    sfpd_values = tuple(sfpd[mode] for mode in (*MODE_NAMES, "other")) + (
+        failed_share,
+    )
+    title = (
+        "Mode occupancy among rollouts reaching state 32 "
+        f"({sfpd_classified_count}/{sfpd_rollout_count}); "
+        "failed-before-midpoint uses all rollouts"
+    )
+    return labels, expert_values, sfpd_values, title
+
+
 def plot_mode_occupancy(
     path: str | Path,
     expert_occupancy: Mapping[str, float],
     sfpd_occupancy: Mapping[str, float],
+    *,
+    sfpd_classified_count: int,
+    sfpd_rollout_count: int,
 ) -> None:
-    """Plot expert and SFPD midpoint occupancies together."""
-    expert = _validated_occupancy(expert_occupancy, "expert_occupancy")
-    sfpd = _validated_occupancy(sfpd_occupancy, "sfpd_occupancy")
+    """Plot conditional midpoint occupancy and pre-midpoint failure share."""
+    labels, expert_values, sfpd_values, title = _occupancy_plot_data(
+        expert_occupancy,
+        sfpd_occupancy,
+        sfpd_classified_count=sfpd_classified_count,
+        sfpd_rollout_count=sfpd_rollout_count,
+    )
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    labels = (*MODE_NAMES, "other")
     x = np.arange(len(labels), dtype=np.float32)
     width = 0.36
     plt, _, patch = _plot_modules()
@@ -194,7 +232,7 @@ def plot_mode_occupancy(
             color = MODE_COLORS[mode]
             axis.bar(
                 x[index] - width / 2,
-                expert[mode],
+                expert_values[index],
                 width,
                 color=color,
                 alpha=0.38,
@@ -202,15 +240,15 @@ def plot_mode_occupancy(
             )
             axis.bar(
                 x[index] + width / 2,
-                sfpd[mode],
+                sfpd_values[index],
                 width,
                 color=color,
                 alpha=0.95,
             )
         axis.set_xticks(x, labels, rotation=18, ha="right")
-        axis.set_ylabel("midpoint occupancy")
-        axis.set_ylim(0.0, max(1.0, *(expert.values()), *(sfpd.values())))
-        axis.set_title("Held-out expert vs SFPD mode occupancy")
+        axis.set_ylabel("conditional occupancy (failure share uses all rollouts)")
+        axis.set_ylim(0.0, max(1.0, *expert_values, *sfpd_values))
+        axis.set_title(title)
         axis.grid(axis="y", alpha=0.2)
         axis.legend(
             handles=[

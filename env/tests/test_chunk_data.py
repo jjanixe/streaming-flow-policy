@@ -1,6 +1,8 @@
 import copy
+from dataclasses import replace
 
 import numpy as np
+import pytest
 
 from env.chunk_data import (
     PushTChunkDataset,
@@ -21,6 +23,61 @@ def test_stage_b1_defaults_match_pusht_contract():
     assert config.action_horizon == 8
     assert config.sigma == 0.1
     assert config.integration_steps_per_action == 6
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("pred_horizon", True),
+        ("obs_horizon", 2.0),
+        ("action_horizon", "8"),
+        ("sigma", np.float32(0.1)),
+        ("hidden_dim", True),
+        ("hidden_layers", 3.0),
+        ("batch_size", np.int64(4)),
+        ("max_updates", False),
+        ("validation_interval", 1.0),
+        ("warmup_updates", np.int64(1)),
+        ("learning_rate", np.float32(1e-4)),
+        ("weight_decay", 0),
+        ("ema_decay", np.float64(0.999)),
+        ("integration_steps_per_action", True),
+        ("rollout_count", 1.0),
+    ],
+)
+def test_stage_b1_config_rejects_nonexact_field_types(field, value):
+    with pytest.raises(ValueError, match=field):
+        replace(DEFAULT_STAGE_B1_CONFIG, **{field: value})
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("sigma", float("nan")),
+        ("sigma", -0.1),
+        ("hidden_dim", 0),
+        ("hidden_layers", 0),
+        ("batch_size", 0),
+        ("max_updates", 0),
+        ("validation_interval", 0),
+        ("warmup_updates", -1),
+        ("learning_rate", float("inf")),
+        ("learning_rate", 0.0),
+        ("weight_decay", -1.0),
+        ("ema_decay", 1.0),
+        ("integration_steps_per_action", 0),
+        ("rollout_count", 0),
+        ("rollout_count", 2**32 + 1),
+    ],
+)
+def test_stage_b1_config_rejects_nonfinite_or_out_of_range_fields(field, value):
+    with pytest.raises(ValueError, match=field):
+        replace(DEFAULT_STAGE_B1_CONFIG, **{field: value})
+
+
+def test_stage_b1_config_rejects_warmup_beyond_training_run():
+    with pytest.raises(ValueError, match="warmup_updates"):
+        replace(DEFAULT_STAGE_B1_CONFIG, max_updates=10, warmup_updates=11)
 
 
 def test_episode_actions_are_shifted_next_positions_with_terminal_repeat():
@@ -82,3 +139,4 @@ def test_first_and_last_windows_match_pusht_padding_and_anchor():
     assert first["obs"].shape == (2, 3)
     assert first["action"].shape == (16, 2)
     assert first["trajectory_id"] == split.trajectory_ids[0]
+    assert first["source_split"] == "validation"

@@ -26,6 +26,7 @@ def test_sfpd_transform_is_seeded_and_returns_only_float32_arrays():
         "obs": np.zeros((2, 3), dtype=np.float32),
         "action": np.linspace(-1.0, 1.0, 32, dtype=np.float32).reshape(16, 2),
         "trajectory_id": "validation:upper-narrow:000",
+        "source_split": "validation",
     }
     first = SFPDDrakeTransform(0.1, np.random.default_rng(7))(datum)
     second = SFPDDrakeTransform(0.1, np.random.default_rng(7))(datum)
@@ -35,3 +36,4 @@ def test_sfpd_transform_is_seeded_and_returns_only_float32_arrays():
     assert first["x"].shape == first["v"].shape == (1, 2)
     assert np.asarray(first["t"]).shape == ()
     assert first["trajectory_id"] == datum["trajectory_id"]
+    assert first["source_split"] == "validation"

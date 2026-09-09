@@ -101,12 +101,34 @@ class SFPDRollout:
             )
 
         chunk_count = len(self.raw_predicted_chunks)
-        expected_chunk_count = (action_count + 7) // 8
-        zero_attempt_generation_record = action_count == 0 and chunk_count == 1
+        exception_chunk_indices = self.info.get(
+            "policy_generation_exception_chunk_indices",
+            [],
+        )
         if (
-            chunk_count != expected_chunk_count
-            and not zero_attempt_generation_record
+            type(exception_chunk_indices) is not list
+            or any(
+                type(index) is not int or not 0 <= index < chunk_count
+                for index in exception_chunk_indices
+            )
+            or exception_chunk_indices != sorted(set(exception_chunk_indices))
         ):
+            raise ValueError(
+                "info policy generation exception chunk indices are invalid"
+            )
+        exception_sentinel = bool(exception_chunk_indices)
+        if exception_sentinel:
+            if (
+                exception_chunk_indices != [chunk_count - 1]
+                or action_count % 8 != 0
+                or chunk_count != action_count // 8 + 1
+                or not np.isnan(self.raw_predicted_chunks[-1]).all()
+            ):
+                raise ValueError(
+                    "a policy exception sentinel must be the final all-NaN chunk "
+                    "after complete 8-action chunks"
+                )
+        elif chunk_count != (action_count + 7) // 8:
             raise ValueError(
                 "chunk count must equal ceil(action count / 8)"
             )
@@ -265,15 +287,18 @@ class SFPDRollout:
             raise ValueError(
                 "rollout numerical_failure must match combined numerical_failure"
             )
-        if zero_attempt_generation_record and not (
+        if exception_sentinel and not (
             policy_generation_failure
-            and nonfinite_chunk_indices == [0]
+            and all(
+                index in nonfinite_chunk_indices
+                for index in exception_chunk_indices
+            )
             and self.numerical_failure
             and not gym_numerical_failure
             and not self.action_limit_failure
         ):
             raise ValueError(
-                "a zero-attempt chunk requires consistent non-finite "
+                "a policy exception sentinel requires consistent non-finite "
                 "policy-generation failure evidence"
             )
 
@@ -308,6 +333,8 @@ def rollout_sfpd(
     integration_steps_per_action: int,
 ) -> SFPDRollout:
     """Run one 8-action-per-chunk rollout through the real Gym environment."""
+    from env.sfp_policies import PolicyNumericalError
+
     environment = PointReach2DPreferenceEnv(config=environment_config)
     try:
         observation, info = environment.reset(
@@ -325,6 +352,7 @@ def rollout_sfpd(
         normalized_anchor_discrepancies: list[np.float32] = []
         physical_anchor_discrepancies: list[np.float32] = []
         policy_generation_nonfinite_chunk_indices: list[int] = []
+        policy_generation_exception_chunk_indices: list[int] = []
         terminated = False
         truncated = False
         device = _policy_device(policy)
@@ -339,11 +367,27 @@ def rollout_sfpd(
                 stats,
             )
             nobs = torch.from_numpy(normalized_observations).to(device=device)
-            normalized_prediction = policy.predict(
-                nobs,
-                num_actions=9,
-                integration_steps_per_action=integration_steps_per_action,
-            )
+            try:
+                normalized_prediction = policy.predict(
+                    nobs,
+                    num_actions=9,
+                    integration_steps_per_action=integration_steps_per_action,
+                )
+            except PolicyNumericalError:
+                failed_chunk_index = len(predicted_chunks)
+                predicted_chunks.append(
+                    np.full((9, 2), np.nan, dtype=np.float32)
+                )
+                normalized_anchor_discrepancies.append(np.float32(np.nan))
+                physical_anchor_discrepancies.append(np.float32(np.nan))
+                policy_generation_nonfinite_chunk_indices.append(
+                    failed_chunk_index
+                )
+                policy_generation_exception_chunk_indices.append(
+                    failed_chunk_index
+                )
+                terminated = True
+                break
             if not isinstance(normalized_prediction, torch.Tensor):
                 raise ValueError("policy prediction must be a torch.Tensor")
             if normalized_prediction.shape != (1, 9, 2):
@@ -403,6 +447,9 @@ def rollout_sfpd(
             ),
             policy_generation_nonfinite_chunk_indices=list(
                 policy_generation_nonfinite_chunk_indices
+            ),
+            policy_generation_exception_chunk_indices=list(
+                policy_generation_exception_chunk_indices
             ),
             normalized_anchor_discrepancies=np.asarray(
                 normalized_anchor_discrepancies,

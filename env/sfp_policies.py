@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import re
 import sys
 import types
 
@@ -38,6 +39,10 @@ else:
     from torchdyn.core import NeuralODE
 
 
+class PolicyNumericalError(RuntimeError):
+    """A genuine non-finite or numerical-integration policy failure."""
+
+
 def _require_float32_tensor(value: object, name: str) -> torch.Tensor:
     if not isinstance(value, torch.Tensor):
         raise ValueError(f"{name} must be a torch.Tensor")
@@ -61,6 +66,10 @@ class _ConditionedVectorField(nn.Module):
             raise ValueError("ODE state must contain exactly two action values")
         if t.numel() != 1:
             raise ValueError("ODE time must be scalar")
+        if not torch.isfinite(x).all():
+            raise PolicyNumericalError("ODE state contains non-finite values")
+        if not torch.isfinite(t).all():
+            raise PolicyNumericalError("ODE time contains non-finite values")
 
         sample = x.reshape(1, 1, 2)
         timestep = t.reshape(1)
@@ -69,9 +78,31 @@ class _ConditionedVectorField(nn.Module):
             timestep=timestep,
             global_cond=self.condition,
         )
+        if not isinstance(velocity, torch.Tensor):
+            raise ValueError("velocity network output must be a torch.Tensor")
+        if velocity.shape != sample.shape:
+            raise ValueError("velocity network output shape must match ODE sample")
         if velocity.dtype != torch.float32:
             raise ValueError("velocity network output must have dtype float32")
+        if velocity.device != x.device:
+            raise ValueError("velocity network output must share the ODE state device")
+        if not torch.isfinite(velocity).all():
+            raise PolicyNumericalError(
+                "velocity network output contains non-finite values"
+            )
         return velocity.reshape(2)
+
+
+def _is_numerical_solver_runtime_error(error: RuntimeError) -> bool:
+    message = str(error).lower()
+    return re.search(
+        r"\b(?:non[- ]?finite|nan|inf|infinite|infinity|overflow|underflow)\b"
+        r"|\b(?:failed|fails|unable) to converge\b"
+        r"|\bdid not converge\b"
+        r"|\bconvergence (?:failure|failed|error)\b"
+        r"|\bstep ?size (?:underflow|became too small|is too small)\b",
+        message,
+    ) is not None
 
 
 class StreamingFlowPolicyDeterministic(nn.Module):
@@ -180,9 +211,29 @@ class StreamingFlowPolicyDeterministic(nn.Module):
             atol=1e-4,
             rtol=1e-4,
         )
-        trajectory = solver.trajectory(x=nobs[-1, :2], t_span=t_span)
+        try:
+            trajectory = solver.trajectory(x=nobs[-1, :2], t_span=t_span)
+        except PolicyNumericalError:
+            raise
+        except (FloatingPointError, OverflowError) as error:
+            raise PolicyNumericalError(str(error)) from error
+        except RuntimeError as error:
+            if _is_numerical_solver_runtime_error(error):
+                raise PolicyNumericalError(str(error)) from error
+            raise
+        if not isinstance(trajectory, torch.Tensor):
+            raise ValueError("ODE trajectory must be a torch.Tensor")
+        if trajectory.shape != (total_steps, 2):
+            raise ValueError(
+                f"ODE trajectory shape must be {(total_steps, 2)}, "
+                f"got {tuple(trajectory.shape)}"
+            )
         if trajectory.dtype != torch.float32:
             raise ValueError("ODE trajectory must have dtype float32")
+        if trajectory.device != nobs.device:
+            raise ValueError("ODE trajectory must share the policy input device")
+        if not torch.isfinite(trajectory).all():
+            raise PolicyNumericalError("ODE trajectory contains non-finite values")
         indices = torch.arange(
             0,
             total_steps,

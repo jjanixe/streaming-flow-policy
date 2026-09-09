@@ -16,6 +16,7 @@ from env.evaluate_stage_b import (
     rollout_sfpd,
     stage_b1_acceptance_failures,
 )
+from env.sfp_policies import PolicyNumericalError
 
 
 class ScriptedNormalizedPolicy:
@@ -42,6 +43,23 @@ class SingleChunkPolicy:
     def predict(self, nobs, num_actions, integration_steps_per_action):
         self.calls += 1
         return torch.from_numpy(self.normalized_chunk[None])
+
+
+class NumericallyFailingPolicy(ScriptedNormalizedPolicy):
+    def __init__(self, normalized_positions: np.ndarray, fail_call: int) -> None:
+        super().__init__(normalized_positions)
+        self.fail_call = fail_call
+
+    def predict(self, nobs, num_actions, integration_steps_per_action):
+        if self.calls == self.fail_call:
+            self.calls += 1
+            raise PolicyNumericalError("adaptive solver produced non-finite state")
+        return super().predict(nobs, num_actions, integration_steps_per_action)
+
+
+class AlwaysNumericallyFailingPolicy:
+    def predict(self, nobs, num_actions, integration_steps_per_action):
+        raise PolicyNumericalError("adaptive solver produced non-finite state")
 
 
 def test_rollout_replans_eight_times_and_executes_64_actions():
@@ -273,6 +291,7 @@ def _recorded_rollout(
             "gym_numerical_failure": numerical_failure,
             "policy_generation_numerical_failure": False,
             "policy_generation_nonfinite_chunk_indices": [],
+            "policy_generation_exception_chunk_indices": [],
             "max_requested_step_distance": (
                 float(
                     np.nanmax(
@@ -595,8 +614,7 @@ def test_rollout_rejects_nonfinite_initial_and_executed_states():
 
 def test_rollout_allows_one_zero_attempt_nonfinite_generation_record():
     anchor = DEFAULT_CONFIG.environment.start_array()
-    chunks = np.repeat(anchor[None, None], 9, axis=1).astype(np.float32)
-    chunks[0, 0, 0] = np.nan
+    chunks = np.full((1, 9, 2), np.nan, dtype=np.float32)
 
     rollout = SFPDRollout(
         seed=12,
@@ -618,6 +636,7 @@ def test_rollout_allows_one_zero_attempt_nonfinite_generation_record():
             "gym_numerical_failure": False,
             "policy_generation_numerical_failure": True,
             "policy_generation_nonfinite_chunk_indices": [0],
+            "policy_generation_exception_chunk_indices": [0],
             "normalized_anchor_discrepancies": np.array(
                 [np.nan], dtype=np.float32
             ),
@@ -628,6 +647,132 @@ def test_rollout_allows_one_zero_attempt_nonfinite_generation_record():
     )
 
     assert rollout.executed_action_count == 0
+
+
+def test_first_policy_numerical_exception_becomes_terminal_sentinel_rollout():
+    bank = generate_demonstration_bank(DEFAULT_CONFIG, seed=152)
+    stats = fit_pusht_stats(bank)
+    policy = NumericallyFailingPolicy(
+        normalize_actions(bank.select("test").positions[0], stats),
+        fail_call=0,
+    )
+
+    rollout = rollout_sfpd(
+        policy,
+        stats,
+        DEFAULT_CONFIG.environment,
+        seed=153,
+        center_init=True,
+        integration_steps_per_action=1,
+    )
+
+    assert rollout.executed_action_count == 0
+    assert rollout.executed_positions.shape == (1, 2)
+    assert rollout.requested_actions.shape == (0, 2)
+    assert rollout.raw_predicted_chunks.shape == (1, 9, 2)
+    assert np.isnan(rollout.raw_predicted_chunks).all()
+    assert np.isnan(rollout.info["normalized_anchor_discrepancies"]).all()
+    assert np.isnan(rollout.info["physical_anchor_discrepancies"]).all()
+    assert rollout.info["policy_generation_exception_chunk_indices"] == [0]
+    assert rollout.info["policy_generation_nonfinite_chunk_indices"] == [0]
+    assert rollout.info["policy_generation_numerical_failure"] is True
+    assert rollout.info["gym_numerical_failure"] is False
+    assert rollout.info["terminated"] is True
+    assert rollout.numerical_failure
+    assert not rollout.success
+
+
+def test_later_policy_numerical_exception_preserves_completed_chunks_and_actions():
+    bank = generate_demonstration_bank(DEFAULT_CONFIG, seed=154)
+    stats = fit_pusht_stats(bank)
+    expert = bank.select("test").positions[0]
+    policy = NumericallyFailingPolicy(
+        normalize_actions(expert, stats),
+        fail_call=1,
+    )
+
+    rollout = rollout_sfpd(
+        policy,
+        stats,
+        DEFAULT_CONFIG.environment,
+        seed=155,
+        center_init=True,
+        integration_steps_per_action=1,
+    )
+
+    assert rollout.executed_action_count == 8
+    np.testing.assert_allclose(rollout.executed_positions, expert[:9], atol=2e-6)
+    np.testing.assert_allclose(rollout.requested_actions, expert[1:9], atol=2e-6)
+    assert rollout.raw_predicted_chunks.shape == (2, 9, 2)
+    assert np.isfinite(rollout.raw_predicted_chunks[0]).all()
+    assert np.isnan(rollout.raw_predicted_chunks[1]).all()
+    assert rollout.info["step_index"] == 8
+    assert rollout.info["policy_generation_exception_chunk_indices"] == [1]
+    assert rollout.info["policy_generation_nonfinite_chunk_indices"] == [1]
+    assert np.isnan(rollout.info["normalized_anchor_discrepancies"][1])
+    assert np.isnan(rollout.info["physical_anchor_discrepancies"][1])
+    assert rollout.numerical_failure
+    assert not rollout.success
+
+
+def test_exception_sentinel_keeps_prior_returned_nonfinite_chunk_semantics():
+    bank = generate_demonstration_bank(DEFAULT_CONFIG, seed=162)
+    stats = fit_pusht_stats(bank)
+    normalized = normalize_actions(bank.select("test").positions[0], stats)
+    normalized[0, 0] = np.nan
+    policy = NumericallyFailingPolicy(normalized, fail_call=1)
+
+    rollout = rollout_sfpd(
+        policy,
+        stats,
+        DEFAULT_CONFIG.environment,
+        seed=163,
+        center_init=True,
+        integration_steps_per_action=1,
+    )
+
+    assert rollout.executed_action_count == 8
+    assert rollout.info["policy_generation_nonfinite_chunk_indices"] == [0, 1]
+    assert rollout.info["policy_generation_exception_chunk_indices"] == [1]
+    assert rollout.numerical_failure
+
+
+def test_evaluation_continues_after_each_policy_numerical_exception():
+    bank = generate_demonstration_bank(DEFAULT_CONFIG, seed=156)
+    stats = fit_pusht_stats(bank)
+
+    metrics, batch = evaluate_sfpd(
+        AlwaysNumericallyFailingPolicy(),
+        stats,
+        DEFAULT_CONFIG.environment,
+        [157, 158, 159],
+        center_init=True,
+        integration_steps_per_action=1,
+    )
+
+    assert len(batch.rollouts) == 3
+    assert metrics["numerical_failure_count"] == 3
+    assert metrics["numerical_failure_indices"] == [0, 1, 2]
+    assert metrics["goal_success_count"] == 0
+
+
+def test_rollout_does_not_swallow_programming_value_error():
+    class InvalidPolicy:
+        def predict(self, nobs, num_actions, integration_steps_per_action):
+            raise ValueError("bad policy configuration")
+
+    bank = generate_demonstration_bank(DEFAULT_CONFIG, seed=160)
+    stats = fit_pusht_stats(bank)
+
+    with pytest.raises(ValueError, match="bad policy configuration"):
+        rollout_sfpd(
+            InvalidPolicy(),
+            stats,
+            DEFAULT_CONFIG.environment,
+            seed=161,
+            center_init=True,
+            integration_steps_per_action=1,
+        )
 
 
 def test_rollout_rejects_invalid_scalar_and_info_types():

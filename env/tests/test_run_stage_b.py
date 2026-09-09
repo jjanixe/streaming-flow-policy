@@ -19,6 +19,7 @@ from env.stage_b_artifacts import load_sfpd_checkpoint, save_sfpd_rollouts
 from env.stage_b_config import DEFAULT_STAGE_B1_CONFIG
 from env.visualize_stage_b import (
     MODE_COLORS,
+    _occupancy_plot_data,
     _rollout_display_mode,
     plot_mode_occupancy,
     plot_trajectory_comparison,
@@ -121,6 +122,21 @@ def test_reduced_stage_b1_run_writes_complete_safe_artifacts(tmp_path):
         "numpy": True,
         "torch": True,
     }
+    audit = diagnostics["audit"]
+    assert set(audit["dataset_splits"]) == {"train", "validation", "test"}
+    for split, summary in audit["dataset_splits"].items():
+        assert summary["source_split"] == split
+        assert summary["window_count"] > 0
+        assert summary["boundary_anchor_correction_raw_l2"]["count"] == summary[
+            "window_count"
+        ]
+        assert summary["normalization_endpoint_mismatch_l2"]["count"] == summary[
+            "window_count"
+        ]
+    boundary = audit["rollout_boundary_jump_l2"]
+    assert "raw_predicted_chunks[c, 0]" in boundary["definition"]
+    assert boundary["gaussian"]["count"] >= 0
+    assert boundary["centered"]["count"] >= 0
 
     checkpoint = load_sfpd_checkpoint(
         tmp_path / "sfpd_best.pt",
@@ -248,12 +264,16 @@ def test_rollout_seed_derivation_resolves_child_collisions(monkeypatch):
     "field",
     ("rollout_count", "integration_steps_per_action"),
 )
-def test_runner_rejects_invalid_evaluation_counts_before_training(
+def test_config_rejects_invalid_evaluation_counts_before_training(
     tmp_path, field
 ):
-    config = replace(DEFAULT_STAGE_B1_CONFIG, **{field: 0}, max_updates=1)
     with pytest.raises(ValueError, match=field):
-        run_stage_b1(tmp_path, bank=_small_bank(seed=48), config=config)
+        replace(
+            DEFAULT_STAGE_B1_CONFIG,
+            **{field: 0},
+            max_updates=1,
+            warmup_updates=0,
+        )
     assert not (tmp_path / "sfpd_best.pt").exists()
 
 
@@ -295,6 +315,8 @@ def test_static_plots_close_figures_and_reject_nonfinite_experts(tmp_path):
             "lower-wide": 0.0,
             "other": 0.0,
         },
+        sfpd_classified_count=1,
+        sfpd_rollout_count=1,
     )
 
     assert (tmp_path / "nested" / "trajectories.png").is_file()
@@ -309,6 +331,29 @@ def test_static_plots_close_figures_and_reject_nonfinite_experts(tmp_path):
             batch,
             DEFAULT_CONFIG.environment,
         )
+
+
+def test_occupancy_plot_states_conditional_denominator_and_failed_share():
+    occupancy = {
+        "upper-narrow": 0.25,
+        "upper-wide": 0.25,
+        "lower-narrow": 0.25,
+        "lower-wide": 0.25,
+        "other": 0.0,
+    }
+
+    labels, expert_values, sfpd_values, title = _occupancy_plot_data(
+        occupancy,
+        occupancy,
+        sfpd_classified_count=4,
+        sfpd_rollout_count=5,
+    )
+
+    assert labels[-1] == "failed-before-midpoint"
+    assert expert_values[-1] == 0.0
+    assert sfpd_values[-1] == pytest.approx(0.2)
+    assert "among rollouts reaching state 32" in title
+    assert "4/5" in title
 
 
 def test_failed_attempt_after_31_transitions_has_no_midpoint_mode():
@@ -467,3 +512,33 @@ def test_cli_requires_saved_demonstrations_instead_of_regenerating(tmp_path):
     )
     assert result.returncode != 0
     assert not (tmp_path / "output" / "sfpd_best.pt").exists()
+
+
+def test_cli_enforce_acceptance_exits_nonzero_for_failed_gate(
+    tmp_path,
+    monkeypatch,
+):
+    bank = _small_bank(seed=54)
+    monkeypatch.setattr(run_stage_b_module, "load_demonstration_bank", lambda _: bank)
+    monkeypatch.setattr(
+        run_stage_b_module,
+        "run_stage_b1",
+        lambda *args, **kwargs: {"accepted": False, "failures": ["gate failed"]},
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_stage_b",
+            "--demonstrations",
+            str(tmp_path / "demonstrations.npz"),
+            "--output-dir",
+            str(tmp_path / "output"),
+            "--enforce-acceptance",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as error:
+        run_stage_b_module.main()
+
+    assert error.value.code == 1

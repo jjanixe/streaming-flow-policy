@@ -6,7 +6,11 @@ import torch
 
 from env.models import SFPDVelocityMLP
 import env.sfp_policies as sfp_policies
-from env.sfp_policies import StreamingFlowPolicyDeterministic
+from env.sfp_policies import (
+    PolicyNumericalError,
+    StreamingFlowPolicyDeterministic,
+    _ConditionedVectorField,
+)
 
 
 def test_sfpd_loss_is_scalar_finite_float32():
@@ -159,3 +163,85 @@ def test_prediction_rejects_invalid_action_or_integration_counts(num_actions, st
     nobs = torch.zeros((2, 3), dtype=torch.float32)
     with pytest.raises(ValueError):
         policy.predict(nobs, num_actions=num_actions, integration_steps_per_action=steps)
+
+
+def test_conditioned_vector_field_classifies_only_nonfinite_values_as_numerical():
+    condition = torch.zeros((1, 6), dtype=torch.float32)
+    finite_field = _ConditionedVectorField(ConstantVelocity(), condition)
+    with pytest.raises(PolicyNumericalError, match="ODE state"):
+        finite_field(
+            torch.tensor(0.25, dtype=torch.float32),
+            torch.tensor([float("nan"), 0.0], dtype=torch.float32),
+        )
+    with pytest.raises(PolicyNumericalError, match="ODE time"):
+        finite_field(
+            torch.tensor(float("nan"), dtype=torch.float32),
+            torch.zeros(2, dtype=torch.float32),
+        )
+
+    class NonFiniteVelocity(torch.nn.Module):
+        def forward(self, sample, timestep, global_cond):
+            return torch.full_like(sample, float("inf"))
+
+    nonfinite_field = _ConditionedVectorField(NonFiniteVelocity(), condition)
+    with pytest.raises(PolicyNumericalError, match="velocity"):
+        nonfinite_field(
+            torch.tensor(0.25, dtype=torch.float32),
+            torch.zeros(2, dtype=torch.float32),
+        )
+
+
+def test_prediction_validates_final_trajectory_shape_and_finiteness(monkeypatch):
+    class InvalidTrajectoryODE:
+        def __init__(self, vector_field, **kwargs):
+            pass
+
+        def trajectory(self, x, t_span):
+            return torch.full(
+                (len(t_span), 2),
+                float("nan"),
+                dtype=torch.float32,
+            )
+
+    monkeypatch.setattr(sfp_policies, "NeuralODE", InvalidTrajectoryODE)
+    policy = StreamingFlowPolicyDeterministic(ConstantVelocity())
+    nobs = torch.zeros((2, 3), dtype=torch.float32)
+    with pytest.raises(PolicyNumericalError, match="trajectory"):
+        policy.predict(nobs, num_actions=2, integration_steps_per_action=1)
+
+    class WrongShapeODE(InvalidTrajectoryODE):
+        def trajectory(self, x, t_span):
+            return torch.zeros((len(t_span), 1), dtype=torch.float32)
+
+    monkeypatch.setattr(sfp_policies, "NeuralODE", WrongShapeODE)
+    with pytest.raises(ValueError, match="shape"):
+        policy.predict(nobs, num_actions=2, integration_steps_per_action=1)
+
+
+@pytest.mark.parametrize(
+    "message,expected_exception",
+    [
+        ("adaptive solver produced non-finite state", PolicyNumericalError),
+        ("banana-shaped internal tensor", RuntimeError),
+        ("internal tensor shape mismatch", RuntimeError),
+    ],
+)
+def test_prediction_translates_only_numerical_solver_runtime_errors(
+    monkeypatch, message, expected_exception
+):
+    class FailingODE:
+        def __init__(self, vector_field, **kwargs):
+            pass
+
+        def trajectory(self, x, t_span):
+            raise RuntimeError(message)
+
+    monkeypatch.setattr(sfp_policies, "NeuralODE", FailingODE)
+    policy = StreamingFlowPolicyDeterministic(ConstantVelocity())
+    with pytest.raises(expected_exception, match=message) as error:
+        policy.predict(
+            torch.zeros((2, 3), dtype=torch.float32),
+            num_actions=2,
+            integration_steps_per_action=1,
+        )
+    assert type(error.value) is expected_exception

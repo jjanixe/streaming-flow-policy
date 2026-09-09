@@ -240,6 +240,61 @@ def _runtime_versions() -> dict[str, str]:
     }
 
 
+def _finite_audit_summary(values: list[float]) -> dict[str, Any]:
+    array = np.asarray(values, dtype=np.float32)
+    finite = array[np.isfinite(array)]
+    return {
+        "count": int(len(array)),
+        "finite_count": int(len(finite)),
+        "nonfinite_count": int(len(array) - len(finite)),
+        "mean": float(finite.mean()) if len(finite) else None,
+        "max": float(finite.max()) if len(finite) else None,
+    }
+
+
+def _dataset_split_audit(
+    bank: DemonstrationBank,
+    stats: PushTStats,
+) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for split in ("train", "validation", "test"):
+        dataset = PushTChunkDataset(bank, split=split, stats=stats)
+        corrections: list[float] = []
+        endpoint_mismatches: list[float] = []
+        for index in range(len(dataset)):
+            datum = dataset[index]
+            if datum["source_split"] != split:
+                raise ValueError("dataset source_split audit metadata is inconsistent")
+            corrections.append(float(datum["anchor_correction_raw_l2"]))
+            endpoint_mismatches.append(float(datum["anchor_physical_l2"]))
+        result[split] = {
+            "source_split": split,
+            "window_count": len(dataset),
+            "boundary_anchor_correction_raw_l2": _finite_audit_summary(
+                corrections
+            ),
+            "normalization_endpoint_mismatch_l2": _finite_audit_summary(
+                endpoint_mismatches
+            ),
+        }
+    return result
+
+
+def _rollout_boundary_jump_summary(
+    batch: SFPDRolloutBatch,
+) -> dict[str, Any]:
+    values: list[float] = []
+    for rollout in batch.rollouts:
+        chunks = rollout.raw_predicted_chunks
+        if len(chunks) > 1:
+            jumps = np.linalg.norm(
+                chunks[1:, 0] - chunks[:-1, 8],
+                axis=1,
+            )
+            values.extend(float(value) for value in jumps)
+    return _finite_audit_summary(values)
+
+
 def write_stage_b1_outputs(
     destination: str | Path,
     bank: DemonstrationBank,
@@ -263,6 +318,9 @@ def write_stage_b1_outputs(
     if checkpoint_metadata["train_data_digest"] != digest:
         raise ValueError("checkpoint and demonstration digests do not match")
     checkpoint_hash = _checkpoint_digest(training.checkpoint_path)
+    stats, stats_digest = load_pusht_stats(training.stats_path)
+    if stats_digest != digest:
+        raise ValueError("statistics and demonstration digests do not match")
     versions = _runtime_versions()
     gaussian = _occupancy_summary(gaussian_metrics)
     centered = _occupancy_summary(centered_metrics)
@@ -304,6 +362,8 @@ def write_stage_b1_outputs(
         output_dir / "mode_occupancy.png",
         expert_occupancy,
         gaussian["midpoint_occupancy"],
+        sfpd_classified_count=gaussian["midpoint_classified_count"],
+        sfpd_rollout_count=gaussian["rollout_count"],
     )
     gif_paths = write_representative_gifs(
         output_dir,
@@ -341,6 +401,25 @@ def write_stage_b1_outputs(
             "torch": checkpoint_metadata["torch_version"] == versions["torch"],
         },
     }
+    audit = {
+        "dataset_splits": _dataset_split_audit(bank, stats),
+        "rollout_boundary_jump_l2": {
+            "definition": (
+                "L2(raw_predicted_chunks[c, 0] - "
+                "raw_predicted_chunks[c - 1, 8]) for each replan boundary"
+            ),
+            "gaussian": _rollout_boundary_jump_summary(gaussian_rollouts),
+            "centered": _rollout_boundary_jump_summary(centered_rollouts),
+        },
+        "anchor_correction_definition": (
+            "dataset action[0] replacement needed to equal the final observation "
+            "anchor after independent PushT normalization"
+        ),
+        "normalization_endpoint_mismatch_definition": (
+            "physical L2 difference after independently normalized observation "
+            "and action endpoints are made equal in normalized coordinates"
+        ),
+    }
     diagnostics = {
         "format_version": RUN_FORMAT_VERSION,
         "version": "toy-v0.1-stage-b1",
@@ -354,6 +433,7 @@ def write_stage_b1_outputs(
             "architecture": checkpoint_metadata["architecture"],
         },
         "checkpoint_environment": checkpoint_environment,
+        "audit": audit,
         "teacher_forced_test_field_loss": held_out_field_loss,
         "deterministic_replay": deterministic_replay,
         "expert_midpoint_occupancy": expert_occupancy,

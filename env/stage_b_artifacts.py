@@ -12,6 +12,7 @@ import numpy as np
 import torch
 
 from env.chunk_data import PushTStats
+from env.stage_b_config import StageB1Config, stage_b1_config_to_dict
 
 
 CHECKPOINT_FORMAT_VERSION = 1
@@ -28,7 +29,20 @@ REQUIRED_METADATA = {
     "train_data_digest",
     "drake_version",
     "numpy_version",
+    "torch_version",
+    "optimizer",
+    "solver",
 }
+
+SEED_STREAM_NAMES = (
+    "model_initialization",
+    "dataloader_shuffle",
+    "train_transform",
+    "validation_transform",
+    "rollout_initialization",
+    "checkpoint_replay",
+)
+UINT32_MAX = np.iinfo(np.uint32).max
 
 
 def _require_digest(value: object) -> str:
@@ -238,20 +252,30 @@ def save_sfpd_checkpoint(
 def _validate_architecture(architecture: object) -> dict[str, Any]:
     if not isinstance(architecture, dict):
         raise ValueError("checkpoint architecture must be a dictionary")
+    if set(architecture) != {
+        "name",
+        "hidden_dim",
+        "hidden_layers",
+        "pred_horizon",
+    }:
+        raise ValueError("checkpoint architecture has invalid schema")
     if architecture.get("name") != "SFPDVelocityMLP":
         raise ValueError("checkpoint architecture is not SFPDVelocityMLP")
     for key in ("hidden_dim", "hidden_layers", "pred_horizon"):
         value = architecture.get(key)
-        if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+        if type(value) is not int or value <= 0:
             raise ValueError(f"checkpoint architecture has invalid {key}")
     if architecture["pred_horizon"] != 16:
         raise ValueError("checkpoint architecture has incompatible pred_horizon")
     return architecture
 
 
-def _canonical_policy_state_schema(
+def _canonical_policy_state_contract(
     architecture: Mapping[str, Any],
-) -> dict[str, tuple[tuple[int, ...], torch.dtype]]:
+) -> tuple[
+    dict[str, tuple[tuple[int, ...], torch.dtype]],
+    dict[str, torch.Tensor],
+]:
     """Derive the exact wrapper state schema without changing caller RNG state."""
     from env.models import SFPDVelocityMLP
     from env.sfp_policies import StreamingFlowPolicyDeterministic
@@ -265,10 +289,15 @@ def _canonical_policy_state_schema(
             pred_horizon=architecture["pred_horizon"],
             device="cpu",
         )
-    return {
+    schema = {
         name: (tuple(value.shape), value.dtype)
         for name, value in policy.state_dict().items()
     }
+    immutable_buffers = {
+        name: value.detach().to(device="cpu", copy=True)
+        for name, value in policy.named_buffers()
+    }
+    return schema, immutable_buffers
 
 
 def _validate_checkpoint_state_schema(
@@ -299,6 +328,114 @@ def _validate_checkpoint_state_schema(
             )
 
 
+def _validate_stage_b1_config(value: object) -> StageB1Config:
+    if not isinstance(value, dict):
+        raise ValueError("checkpoint stage_b1_config must be a dictionary")
+    expected_keys = set(stage_b1_config_to_dict(StageB1Config()))
+    if set(value) != expected_keys:
+        raise ValueError("checkpoint stage_b1_config has invalid schema")
+    try:
+        return StageB1Config(**value)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"checkpoint stage_b1_config is invalid: {error}") from error
+
+
+def _validate_seed_metadata(metadata: Mapping[str, Any]) -> None:
+    root_seed = metadata["root_seed"]
+    if type(root_seed) is not int or not 0 <= root_seed <= UINT32_MAX:
+        raise ValueError("checkpoint root_seed must be a uint32-range integer")
+    seed_streams = metadata["seed_streams"]
+    if not isinstance(seed_streams, dict) or set(seed_streams) != set(
+        SEED_STREAM_NAMES
+    ):
+        raise ValueError("checkpoint seed_streams has invalid names")
+    if any(
+        type(seed) is not int or not 0 <= seed <= UINT32_MAX
+        for seed in seed_streams.values()
+    ):
+        raise ValueError("checkpoint seed_streams values must be uint32-range ints")
+    children = np.random.SeedSequence(root_seed).spawn(len(SEED_STREAM_NAMES))
+    expected_seed_streams = {
+        name: int(child.generate_state(1, dtype=np.uint32)[0])
+        for name, child in zip(SEED_STREAM_NAMES, children)
+    }
+    if seed_streams != expected_seed_streams:
+        raise ValueError(
+            "checkpoint seed_streams do not match deterministic root_seed streams"
+        )
+
+
+def _validate_optimizer_metadata(
+    value: object,
+    config: StageB1Config,
+) -> None:
+    if not isinstance(value, dict) or set(value) != {
+        "name",
+        "learning_rate",
+        "weight_decay",
+        "warmup_updates",
+        "schedule",
+    }:
+        raise ValueError("checkpoint optimizer metadata has invalid schema")
+    if (
+        type(value["name"]) is not str
+        or type(value["learning_rate"]) is not float
+        or type(value["weight_decay"]) is not float
+        or type(value["warmup_updates"]) is not int
+        or type(value["schedule"]) is not str
+    ):
+        raise ValueError("checkpoint optimizer metadata has invalid field types")
+    expected = {
+        "name": "AdamW",
+        "learning_rate": config.learning_rate,
+        "weight_decay": config.weight_decay,
+        "warmup_updates": config.warmup_updates,
+        "schedule": "linear_warmup_cosine",
+    }
+    if value != expected:
+        raise ValueError("checkpoint optimizer metadata is inconsistent with config")
+
+
+def _validate_solver_metadata(value: object, config: StageB1Config) -> None:
+    if not isinstance(value, dict) or set(value) != {
+        "name",
+        "sensitivity",
+        "atol",
+        "rtol",
+        "integration_steps_per_action",
+    }:
+        raise ValueError("checkpoint solver metadata has invalid schema")
+    if (
+        type(value["name"]) is not str
+        or type(value["sensitivity"]) is not str
+        or type(value["atol"]) is not float
+        or type(value["rtol"]) is not float
+        or type(value["integration_steps_per_action"]) is not int
+    ):
+        raise ValueError("checkpoint solver metadata has invalid field types")
+    expected = {
+        "name": "dopri5",
+        "sensitivity": "adjoint",
+        "atol": 1e-4,
+        "rtol": 1e-4,
+        "integration_steps_per_action": config.integration_steps_per_action,
+    }
+    if value != expected:
+        raise ValueError("checkpoint solver metadata is inconsistent with config")
+
+
+def _validate_immutable_buffers(
+    state: Mapping[str, torch.Tensor],
+    expected: Mapping[str, torch.Tensor],
+    name: str,
+) -> None:
+    for key, expected_value in expected.items():
+        if not torch.equal(state[key], expected_value):
+            raise ValueError(
+                f"{name} immutable buffer {key!r} does not match canonical value"
+            )
+
+
 def load_sfpd_checkpoint(
     path: str | Path,
     *,
@@ -323,7 +460,10 @@ def load_sfpd_checkpoint(
     if missing:
         raise ValueError(f"checkpoint metadata is missing keys: {sorted(missing)}")
     _validate_portable_metadata(metadata)
-    if metadata["format_version"] != CHECKPOINT_FORMAT_VERSION:
+    if (
+        type(metadata["format_version"]) is not int
+        or metadata["format_version"] != CHECKPOINT_FORMAT_VERSION
+    ):
         raise ValueError("checkpoint format version is incompatible")
     if metadata["model_type"] != "sfpd":
         raise ValueError("checkpoint model type is incompatible")
@@ -334,28 +474,42 @@ def load_sfpd_checkpoint(
         raise ValueError(
             "checkpoint architecture does not match the expected architecture"
         )
-    if not isinstance(metadata["stage_b1_config"], dict):
-        raise ValueError("checkpoint stage_b1_config must be a dictionary")
+    config = _validate_stage_b1_config(metadata["stage_b1_config"])
+    if architecture != {
+        "name": "SFPDVelocityMLP",
+        "hidden_dim": config.hidden_dim,
+        "hidden_layers": config.hidden_layers,
+        "pred_horizon": config.pred_horizon,
+    }:
+        raise ValueError("checkpoint architecture is inconsistent with config")
     if (
-        not isinstance(metadata["selected_update"], int)
-        or isinstance(metadata["selected_update"], bool)
-        or metadata["selected_update"] <= 0
+        type(metadata["selected_update"]) is not int
+        or not 1 <= metadata["selected_update"] <= config.max_updates
     ):
-        raise ValueError("checkpoint selected_update must be positive")
-    if not isinstance(metadata["validation_loss"], float) or not math.isfinite(
+        raise ValueError("checkpoint selected_update is outside training bounds")
+    if type(metadata["validation_loss"]) is not float or not math.isfinite(
         metadata["validation_loss"]
-    ):
-        raise ValueError("checkpoint validation_loss must be a finite float")
-    if not isinstance(metadata["seed_streams"], dict):
-        raise ValueError("checkpoint seed_streams must be a dictionary")
+    ) or metadata["validation_loss"] < 0.0:
+        raise ValueError("checkpoint validation_loss must be a finite nonnegative float")
+    for version_name in ("drake_version", "numpy_version", "torch_version"):
+        version = metadata[version_name]
+        if not isinstance(version, str) or not version.strip():
+            raise ValueError(f"checkpoint {version_name} must be a nonempty version")
+    _validate_seed_metadata(metadata)
+    _validate_optimizer_metadata(metadata["optimizer"], config)
+    _validate_solver_metadata(metadata["solver"], config)
 
     raw_state = _copy_checkpoint_state(payload["raw_state"], "raw_state")
     ema_state = _copy_checkpoint_state(payload["ema_state"], "ema_state")
     if raw_state.keys() != ema_state.keys():
         raise ValueError("raw and EMA checkpoint states must have identical keys")
-    canonical_schema = _canonical_policy_state_schema(architecture)
+    canonical_schema, immutable_buffers = _canonical_policy_state_contract(
+        architecture
+    )
     _validate_checkpoint_state_schema(raw_state, canonical_schema, "raw_state")
     _validate_checkpoint_state_schema(ema_state, canonical_schema, "ema_state")
+    _validate_immutable_buffers(raw_state, immutable_buffers, "raw_state")
+    _validate_immutable_buffers(ema_state, immutable_buffers, "ema_state")
     return {
         "raw_state": raw_state,
         "ema_state": ema_state,
