@@ -1,7 +1,11 @@
+import subprocess
+import sys
+
 import pytest
 import torch
 
 from env.models import SFPDVelocityMLP
+import env.sfp_policies as sfp_policies
 from env.sfp_policies import StreamingFlowPolicyDeterministic
 
 
@@ -53,6 +57,78 @@ def test_prediction_starts_at_anchor_and_samples_eight_future_actions():
         atol=1e-4,
         rtol=1e-4,
     )
+
+
+def test_prediction_with_only_anchor_returns_normalized_anchor_without_ode(monkeypatch):
+    def fail_if_ode_constructed(*args, **kwargs):
+        raise AssertionError("one-action prediction must not construct an ODE")
+
+    monkeypatch.setattr(sfp_policies, "NeuralODE", fail_if_ode_constructed)
+    policy = StreamingFlowPolicyDeterministic(ConstantVelocity())
+    nobs = torch.tensor(
+        [[-0.5, 0.25, -1.0], [-0.4, 0.2, -0.75]],
+        dtype=torch.float32,
+    )
+    actions = policy.predict(nobs, num_actions=1, integration_steps_per_action=1)
+    assert actions.shape == (1, 1, 2)
+    assert actions.dtype == torch.float32
+    assert actions.device == nobs.device
+    torch.testing.assert_close(actions[0, 0], torch.tensor([-0.4, 0.2]))
+
+
+def test_policy_import_restores_missing_lzma_module_semantics():
+    script = """
+import sys
+
+try:
+    import lzma
+except ModuleNotFoundError as error:
+    assert error.name == "_lzma"
+else:
+    raise AssertionError("the test runtime unexpectedly provides lzma")
+
+import env.sfp_policies
+
+assert "lzma" not in sys.modules
+try:
+    import lzma
+except ModuleNotFoundError as error:
+    assert error.name == "_lzma"
+else:
+    raise AssertionError("policy import installed a fake lzma module")
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+
+
+def test_prediction_configures_torchdyn_dopri5_adjoint_tolerances(monkeypatch):
+    captured = {}
+
+    class CapturingNeuralODE:
+        def __init__(self, vector_field, **kwargs):
+            captured["vector_field"] = vector_field
+            captured["kwargs"] = kwargs
+
+        def trajectory(self, x, t_span):
+            return torch.stack((x, x))
+
+    monkeypatch.setattr(sfp_policies, "NeuralODE", CapturingNeuralODE)
+    policy = StreamingFlowPolicyDeterministic(ConstantVelocity())
+    nobs = torch.zeros((2, 3), dtype=torch.float32)
+    policy.predict(nobs, num_actions=2, integration_steps_per_action=1)
+
+    assert isinstance(captured["vector_field"], torch.nn.Module)
+    assert captured["kwargs"] == {
+        "solver": "dopri5",
+        "sensitivity": "adjoint",
+        "atol": 1e-4,
+        "rtol": 1e-4,
+    }
 
 
 @pytest.mark.parametrize(

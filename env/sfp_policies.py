@@ -9,22 +9,33 @@ import types
 import torch
 from torch import nn
 
-# Torchdyn imports torchvision through Lightning.  The supplied Python runtime
+# Torchdyn imports torchvision through Lightning. The supplied Python runtime
 # omits its optional ``_lzma`` extension, while torchvision only stores
-# ``lzma.open`` for archive extraction during that import.  Keep Torchdyn
-# usable for ODE integration and fail clearly if that unrelated feature is used.
+# ``lzma.open`` for archive extraction during that import. Keep Torchdyn usable
+# for ODE integration without changing the runtime's global lzma semantics.
+_MISSING_MODULE = object()
+_previous_lzma = sys.modules.get("lzma", _MISSING_MODULE)
 try:
-    import lzma as _lzma
-except ModuleNotFoundError:
-    _lzma = types.ModuleType("lzma")
+    import lzma
+except ModuleNotFoundError as error:
+    if error.name != "_lzma":
+        raise
+    _lzma_stub = types.ModuleType("lzma")
 
     def _unavailable_lzma_open(*args: object, **kwargs: object) -> object:
         raise RuntimeError("lzma support is unavailable in this Python runtime")
 
-    _lzma.open = _unavailable_lzma_open
-    sys.modules["lzma"] = _lzma
-
-from torchdyn.core import NeuralODE
+    _lzma_stub.open = _unavailable_lzma_open
+    sys.modules["lzma"] = _lzma_stub
+    try:
+        from torchdyn.core import NeuralODE
+    finally:
+        if _previous_lzma is _MISSING_MODULE:
+            sys.modules.pop("lzma", None)
+        else:
+            sys.modules["lzma"] = _previous_lzma
+else:
+    from torchdyn.core import NeuralODE
 
 
 def _require_float32_tensor(value: object, name: str) -> torch.Tensor:
@@ -148,6 +159,8 @@ class StreamingFlowPolicyDeterministic(nn.Module):
         if nobs.device != self.device:
             raise ValueError("nobs and policy must share a device")
         self._validate_model_device(nobs.device)
+        if num_actions == 1:
+            return nobs[-1, :2].reshape(1, 1, 2)
 
         condition = nobs.unsqueeze(0).flatten(start_dim=1)
         num_future_actions = num_actions - 1
