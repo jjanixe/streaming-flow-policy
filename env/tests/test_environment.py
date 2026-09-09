@@ -100,9 +100,13 @@ def test_rgb_array_render_has_stable_shape_and_tracks_episode():
         assert initial_frame.dtype == np.uint8
         assert np.unique(initial_frame.reshape(-1, 3), axis=0).shape[0] > 4
 
-        instance.step(np.array([-0.5, 0.35], dtype=np.float32))
+        far_position = np.array([9.0, -4.0], dtype=np.float32)
+        observation, _, _, _, info = instance.step(far_position)
         stepped_frame = instance.render()
         assert not np.array_equal(stepped_frame, initial_frame)
+        np.testing.assert_array_equal(observation[:2], far_position)
+        np.testing.assert_array_equal(instance._position, far_position)
+        assert info["outside_visualization"] is True
 
         instance.reset(seed=0, options={"center_init": True})
         reset_frame = instance.render()
@@ -111,14 +115,45 @@ def test_rgb_array_render_has_stable_shape_and_tracks_episode():
         instance.close()
 
 
-def test_human_render_runs_with_headless_sdl(monkeypatch):
+def test_human_render_is_automatic_and_closes_owned_pygame(monkeypatch):
+    class CountingHumanEnv(PointReach2DPreferenceEnv):
+        def __init__(self):
+            self.render_calls = 0
+            super().__init__(render_mode="human")
+
+        def render(self):
+            self.render_calls += 1
+            return super().render()
+
     monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
-    instance = PointReach2DPreferenceEnv(render_mode="human")
+    instance = CountingHumanEnv()
     try:
         instance.reset(seed=0, options={"center_init": True})
-        assert instance.render() is None
+        assert instance.render_calls == 1
         instance.step(np.array([-0.8, 0.1], dtype=np.float32))
-        assert instance.render() is None
+        assert instance.render_calls == 2
+
+        import pygame
+
+        assert pygame.get_init() is True
     finally:
         instance.close()
         instance.close()
+
+    assert pygame.get_init() is False
+
+
+def test_human_close_preserves_externally_initialized_pygame(monkeypatch):
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    import pygame
+
+    pygame.init()
+    instance = PointReach2DPreferenceEnv(render_mode="human")
+    try:
+        instance.reset(seed=0, options={"center_init": True})
+        instance.close()
+
+        assert pygame.get_init() is True
+    finally:
+        instance.close()
+        pygame.quit()
