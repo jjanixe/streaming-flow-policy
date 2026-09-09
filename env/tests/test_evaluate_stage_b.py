@@ -1,0 +1,343 @@
+import numpy as np
+import pytest
+import torch
+
+from env.chunk_data import fit_pusht_stats, normalize_actions
+from env.config import DEFAULT_CONFIG
+from env.demonstrations import generate_demonstration_bank
+from env.evaluate_stage_b import (
+    SFPDRollout,
+    SFPDRolloutBatch,
+    aggregate_sfpd_metrics,
+    evaluate_sfpd,
+    rollout_sfpd,
+    stage_b1_acceptance_failures,
+)
+
+
+class ScriptedNormalizedPolicy:
+    def __init__(self, normalized_positions: np.ndarray) -> None:
+        self.normalized_positions = normalized_positions
+        self.calls = 0
+        self.conditions: list[np.ndarray] = []
+
+    def predict(self, nobs, num_actions, integration_steps_per_action):
+        assert nobs.dtype == torch.float32
+        assert num_actions == 9
+        self.conditions.append(nobs.detach().cpu().numpy().copy())
+        start = self.calls * 8
+        self.calls += 1
+        chunk = self.normalized_positions[start : start + 9]
+        return torch.from_numpy(chunk[None]).to(dtype=torch.float32)
+
+
+class SingleChunkPolicy:
+    def __init__(self, normalized_chunk: np.ndarray) -> None:
+        self.normalized_chunk = normalized_chunk
+        self.calls = 0
+
+    def predict(self, nobs, num_actions, integration_steps_per_action):
+        self.calls += 1
+        return torch.from_numpy(self.normalized_chunk[None])
+
+
+def test_rollout_replans_eight_times_and_executes_64_actions():
+    bank = generate_demonstration_bank(DEFAULT_CONFIG, seed=31)
+    stats = fit_pusht_stats(bank)
+    expert = bank.select("test").positions[0]
+    scripted = ScriptedNormalizedPolicy(normalize_actions(expert, stats))
+
+    rollout = rollout_sfpd(
+        scripted,
+        stats,
+        DEFAULT_CONFIG.environment,
+        seed=32,
+        center_init=True,
+        integration_steps_per_action=1,
+    )
+
+    assert scripted.calls == 8
+    assert rollout.executed_action_count == 64
+    assert rollout.success
+    assert rollout.initial_observation.dtype == np.float32
+    assert rollout.executed_positions.dtype == np.float32
+    assert rollout.requested_actions.dtype == np.float32
+    assert rollout.raw_predicted_chunks.dtype == np.float32
+    assert rollout.raw_predicted_chunks.shape == (8, 9, 2)
+    np.testing.assert_allclose(rollout.executed_positions, expert, atol=2e-6)
+    np.testing.assert_array_equal(
+        scripted.conditions[0][0], scripted.conditions[0][1]
+    )
+    assert scripted.conditions[1][0, 2] < scripted.conditions[1][1, 2]
+
+
+def test_action_limit_failure_preserves_raw_request_and_unchanged_state():
+    bank = generate_demonstration_bank(DEFAULT_CONFIG, seed=33)
+    stats = fit_pusht_stats(bank)
+    anchor = DEFAULT_CONFIG.environment.start_array()
+    invalid = anchor + np.array([0.2, 0.0], dtype=np.float32)
+    physical_chunk = np.repeat(anchor[None], 9, axis=0)
+    physical_chunk[1] = invalid
+    policy = SingleChunkPolicy(normalize_actions(physical_chunk, stats))
+
+    rollout = rollout_sfpd(
+        policy,
+        stats,
+        DEFAULT_CONFIG.environment,
+        seed=34,
+        center_init=True,
+        integration_steps_per_action=1,
+    )
+
+    assert policy.calls == 1
+    assert rollout.executed_action_count == 1
+    assert rollout.action_limit_failure
+    assert not rollout.numerical_failure
+    assert rollout.info["action_limit_activation_count"] == 1
+    assert rollout.info["action_attempt_count"] == 1
+    assert rollout.info["max_requested_step_distance"] == pytest.approx(0.2)
+    np.testing.assert_allclose(rollout.requested_actions[0], invalid, atol=1e-7)
+    np.testing.assert_allclose(rollout.raw_predicted_chunks[0, 1], invalid, atol=1e-7)
+    np.testing.assert_array_equal(
+        rollout.executed_positions,
+        np.stack((anchor, anchor)),
+    )
+
+
+def test_nonfinite_action_is_preserved_and_counted_as_numerical_failure():
+    bank = generate_demonstration_bank(DEFAULT_CONFIG, seed=35)
+    stats = fit_pusht_stats(bank)
+    physical_chunk = np.repeat(
+        DEFAULT_CONFIG.environment.start_array()[None],
+        9,
+        axis=0,
+    )
+    physical_chunk[1, 0] = np.nan
+    policy = SingleChunkPolicy(normalize_actions(physical_chunk, stats))
+
+    rollout = rollout_sfpd(
+        policy,
+        stats,
+        DEFAULT_CONFIG.environment,
+        seed=36,
+        center_init=True,
+        integration_steps_per_action=1,
+    )
+
+    assert rollout.numerical_failure
+    assert not rollout.action_limit_failure
+    assert np.isnan(rollout.requested_actions[0, 0])
+    assert np.isnan(rollout.raw_predicted_chunks[0, 1, 0])
+    np.testing.assert_array_equal(
+        rollout.executed_positions[0], rollout.executed_positions[1]
+    )
+
+
+def test_rollout_is_byte_deterministic_for_same_gaussian_seed():
+    bank = generate_demonstration_bank(DEFAULT_CONFIG, seed=37)
+    stats = fit_pusht_stats(bank)
+    expert = bank.select("test").positions[0]
+
+    first = rollout_sfpd(
+        ScriptedNormalizedPolicy(normalize_actions(expert, stats)),
+        stats,
+        DEFAULT_CONFIG.environment,
+        seed=38,
+        center_init=False,
+        integration_steps_per_action=2,
+    )
+    second = rollout_sfpd(
+        ScriptedNormalizedPolicy(normalize_actions(expert, stats)),
+        stats,
+        DEFAULT_CONFIG.environment,
+        seed=38,
+        center_init=False,
+        integration_steps_per_action=2,
+    )
+
+    assert first.initial_observation.tobytes() == second.initial_observation.tobytes()
+    assert first.executed_positions.tobytes() == second.executed_positions.tobytes()
+    assert first.requested_actions.tobytes() == second.requested_actions.tobytes()
+    assert first.raw_predicted_chunks.tobytes() == second.raw_predicted_chunks.tobytes()
+
+
+def _recorded_rollout(
+    *,
+    seed: int,
+    positions: np.ndarray,
+    success: bool,
+    action_limit_failure: bool = False,
+    numerical_failure: bool = False,
+    action_limit_activation_count: int = 0,
+    requested_actions: np.ndarray | None = None,
+) -> SFPDRollout:
+    positions = positions.astype(np.float32, copy=False)
+    if requested_actions is None:
+        requested_actions = positions[1:].copy()
+    requested_actions = requested_actions.astype(np.float32, copy=False)
+    attempts = len(requested_actions)
+    return SFPDRollout(
+        seed=seed,
+        initial_observation=np.array(
+            [positions[0, 0], positions[0, 1], 0.0], dtype=np.float32
+        ),
+        executed_positions=positions,
+        requested_actions=requested_actions,
+        raw_predicted_chunks=np.repeat(
+            positions[[0]][None],
+            9,
+            axis=1,
+        ).astype(np.float32),
+        executed_action_count=attempts,
+        success=success,
+        numerical_failure=numerical_failure,
+        action_limit_failure=action_limit_failure,
+        info={
+            "step_index": min(attempts, 64) if not action_limit_failure else 0,
+            "goal_error": float(
+                np.linalg.norm(positions[-1] - DEFAULT_CONFIG.environment.goal_array())
+            ),
+            "action_attempt_count": attempts,
+            "action_limit_activation_count": action_limit_activation_count,
+            "max_requested_step_distance": (
+                float(
+                    np.nanmax(
+                        np.linalg.norm(
+                            requested_actions - positions[:attempts], axis=1
+                        )
+                    )
+                )
+                if attempts
+                else 0.0
+            ),
+            "normalized_anchor_discrepancies": np.zeros(1, dtype=np.float32),
+            "physical_anchor_discrepancies": np.full(
+                1, np.float32(seed) / np.float32(1000.0), dtype=np.float32
+            ),
+        },
+    )
+
+
+def test_aggregate_uses_state_32_and_separates_failed_before_midpoint():
+    bank = generate_demonstration_bank(DEFAULT_CONFIG, seed=39).select("test")
+    mode_rollouts = []
+    for seed, mode in enumerate(
+        ("upper-narrow", "upper-wide", "lower-narrow", "lower-wide"),
+        start=1,
+    ):
+        index = int(np.flatnonzero(bank.modes == mode)[0])
+        mode_rollouts.append(
+            _recorded_rollout(
+                seed=seed,
+                positions=bank.positions[index],
+                success=True,
+            )
+        )
+    anchor = DEFAULT_CONFIG.environment.start_array()
+    failed_request = anchor + np.array([0.2, 0.0], dtype=np.float32)
+    failed = _recorded_rollout(
+        seed=5,
+        positions=np.stack((anchor, anchor)),
+        requested_actions=failed_request[None],
+        success=False,
+        action_limit_failure=True,
+        action_limit_activation_count=1,
+    )
+
+    metrics = aggregate_sfpd_metrics(
+        SFPDRolloutBatch.from_rollouts((*mode_rollouts, failed)),
+        DEFAULT_CONFIG.environment,
+    )
+
+    assert metrics["rollout_count"] == 5
+    assert metrics["goal_success_count"] == 4
+    assert metrics["goal_success_rate"] == pytest.approx(0.8)
+    assert len(metrics["final_goal_errors"]) == 5
+    assert metrics["numerical_failure_count"] == 0
+    assert metrics["action_limit_failure_count"] == 1
+    assert metrics["action_limit_failure_indices"] == [4]
+    assert metrics["action_limit_activation_count"] == 1
+    assert metrics["action_limit_activation_rate"] == pytest.approx(1.0 / 257.0)
+    assert metrics["max_requested_step_distance"] == pytest.approx(0.2)
+    assert metrics["failed_before_midpoint_count"] == 1
+    assert metrics["failed_before_midpoint_indices"] == [4]
+    assert metrics["midpoint_classified_count"] == 4
+    assert metrics["midpoint_occupancy"] == pytest.approx(
+        {
+            "upper-narrow": 0.25,
+            "upper-wide": 0.25,
+            "lower-narrow": 0.25,
+            "lower-wide": 0.25,
+            "other": 0.0,
+            "nonfinite": 0.0,
+        }
+    )
+    assert metrics["physical_anchor_discrepancy_max"] == pytest.approx(0.005)
+    assert metrics["normalized_anchor_discrepancy_max"] == 0.0
+
+
+def test_acceptance_failures_return_exact_development_gate_reasons():
+    passing = {
+        "goal_success_rate": 0.95,
+        "numerical_failure_count": 0,
+        "midpoint_occupancy": {
+            "upper-narrow": 0.25,
+            "upper-wide": 0.25,
+            "lower-narrow": 0.25,
+            "lower-wide": 0.25,
+            "other": 0.0,
+        },
+    }
+    assert stage_b1_acceptance_failures(passing) == []
+
+    failing = {
+        **passing,
+        "goal_success_rate": 0.94,
+        "numerical_failure_count": 1,
+        "midpoint_occupancy": {
+            "upper-narrow": 0.04,
+            "upper-wide": 0.36,
+            "lower-narrow": 0.25,
+            "lower-wide": 0.25,
+            "other": 0.06,
+        },
+    }
+    assert stage_b1_acceptance_failures(failing) == [
+        "goal success rate is below 0.95",
+        "numerical failures are nonzero",
+        "upper-narrow occupancy is below 0.05",
+        "upper-narrow occupancy differs from 0.25 by more than 0.10",
+        "upper-wide occupancy differs from 0.25 by more than 0.10",
+        "other occupancy is above 0.05",
+    ]
+
+
+def test_evaluate_returns_batch_and_attaches_acceptance_failures():
+    bank = generate_demonstration_bank(DEFAULT_CONFIG, seed=40)
+    stats = fit_pusht_stats(bank)
+    expert = bank.select("test").positions[0]
+    metrics, batch = evaluate_sfpd(
+        ScriptedNormalizedPolicy(normalize_actions(expert, stats)),
+        stats,
+        DEFAULT_CONFIG.environment,
+        [41],
+        center_init=True,
+        integration_steps_per_action=1,
+    )
+
+    assert len(batch.rollouts) == 1
+    assert metrics["goal_success_rate"] == 1.0
+    assert metrics["acceptance_failures"] == [
+        "upper-narrow occupancy differs from 0.25 by more than 0.10",
+        "upper-wide occupancy is below 0.05",
+        "upper-wide occupancy differs from 0.25 by more than 0.10",
+        "lower-narrow occupancy is below 0.05",
+        "lower-narrow occupancy differs from 0.25 by more than 0.10",
+        "lower-wide occupancy is below 0.05",
+        "lower-wide occupancy differs from 0.25 by more than 0.10",
+    ]
+
+
+def test_empty_rollout_batch_is_rejected():
+    with pytest.raises(ValueError, match="at least one rollout"):
+        SFPDRolloutBatch.from_rollouts([])
