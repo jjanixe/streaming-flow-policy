@@ -238,6 +238,16 @@ def _recorded_rollout(
     requested_actions = requested_actions.astype(np.float32, copy=False)
     attempts = len(requested_actions)
     chunk_count = (attempts + 7) // 8 if attempts else 1
+    raw_chunks = np.repeat(
+        positions[[0]][None],
+        chunk_count * 9,
+        axis=1,
+    ).reshape(chunk_count, 9, 2).astype(np.float32)
+    for chunk_index in range(chunk_count):
+        start = chunk_index * 8
+        stop = min(start + 8, attempts)
+        raw_chunks[chunk_index, 0] = positions[min(start, len(positions) - 1)]
+        raw_chunks[chunk_index, 1 : 1 + stop - start] = requested_actions[start:stop]
     return SFPDRollout(
         seed=seed,
         initial_observation=np.array(
@@ -245,15 +255,7 @@ def _recorded_rollout(
         ),
         executed_positions=positions,
         requested_actions=requested_actions,
-        raw_predicted_chunks=np.repeat(
-            positions[[0]][None],
-            chunk_count * 9,
-            axis=1,
-        ).reshape(
-            chunk_count,
-            9,
-            2,
-        ).astype(np.float32),
+        raw_predicted_chunks=raw_chunks,
         executed_action_count=attempts,
         success=success,
         numerical_failure=numerical_failure,
@@ -441,6 +443,37 @@ def test_rollout_rejects_action_and_chunk_relationship_mismatches():
         replace(valid, raw_predicted_chunks=valid.raw_predicted_chunks[:1])
 
 
+def test_rollout_rejects_requested_values_not_copied_from_chunks_in_order():
+    path = generate_demonstration_bank(DEFAULT_CONFIG, seed=147).positions[0]
+    valid = _recorded_rollout(seed=9, positions=path, success=True)
+    chunks = valid.raw_predicted_chunks.copy()
+    chunks[0, 1, 0] += np.float32(0.01)
+
+    with pytest.raises(ValueError, match="requested_actions.*predicted chunk"):
+        replace(valid, raw_predicted_chunks=chunks)
+
+
+def test_rollout_rejects_trailing_chunk_without_attempted_actions():
+    path = generate_demonstration_bank(DEFAULT_CONFIG, seed=148).positions[0]
+    valid = _recorded_rollout(seed=10, positions=path, success=True)
+    trailing = np.concatenate(
+        (valid.raw_predicted_chunks, valid.raw_predicted_chunks[[-1]]),
+        axis=0,
+    )
+    info = {
+        **valid.info,
+        "normalized_anchor_discrepancies": np.append(
+            valid.info["normalized_anchor_discrepancies"], np.float32(0.0)
+        ).astype(np.float32),
+        "physical_anchor_discrepancies": np.append(
+            valid.info["physical_anchor_discrepancies"], np.float32(0.0)
+        ).astype(np.float32),
+    }
+
+    with pytest.raises(ValueError, match="chunk count.*ceil"):
+        replace(valid, raw_predicted_chunks=trailing, info=info)
+
+
 def test_rollout_rejects_inconsistent_info_and_success_flags():
     path = generate_demonstration_bank(DEFAULT_CONFIG, seed=141).positions[0]
     valid = _recorded_rollout(seed=3, positions=path, success=True)
@@ -485,6 +518,116 @@ def test_rollout_rejects_inconsistent_generation_failure_metadata():
                 "policy_generation_nonfinite_chunk_indices": [],
             },
         )
+
+
+def test_rollout_rejects_missing_gym_flag_for_attempted_nonfinite_action():
+    bank = generate_demonstration_bank(DEFAULT_CONFIG, seed=149)
+    stats = fit_pusht_stats(bank)
+    anchor = DEFAULT_CONFIG.environment.start_array()
+    physical_chunk = np.repeat(anchor[None], 9, axis=0)
+    physical_chunk[1, 0] = np.nan
+    failed = rollout_sfpd(
+        SingleChunkPolicy(normalize_actions(physical_chunk, stats)),
+        stats,
+        DEFAULT_CONFIG.environment,
+        seed=150,
+        center_init=True,
+        integration_steps_per_action=1,
+    )
+
+    with pytest.raises(ValueError, match="gym_numerical_failure.*attempted"):
+        replace(failed, info={**failed.info, "gym_numerical_failure": False})
+
+
+def test_rollout_rejects_nonfinite_initial_and_executed_states():
+    path = generate_demonstration_bank(DEFAULT_CONFIG, seed=151).positions[0]
+    valid = _recorded_rollout(seed=11, positions=path, success=True)
+
+    initial = valid.initial_observation.copy()
+    executed = valid.executed_positions.copy()
+    chunks = valid.raw_predicted_chunks.copy()
+    initial[0] = np.nan
+    executed[0, 0] = np.nan
+    chunks[0, 0, 0] = np.nan
+    generation_info = {
+        **valid.info,
+        "success": False,
+        "numerical_failure": True,
+        "policy_generation_numerical_failure": True,
+        "policy_generation_nonfinite_chunk_indices": [0],
+    }
+    with pytest.raises(ValueError, match="initial_observation.*finite"):
+        replace(
+            valid,
+            initial_observation=initial,
+            executed_positions=executed,
+            raw_predicted_chunks=chunks,
+            success=False,
+            numerical_failure=True,
+            info=generation_info,
+        )
+
+    requested = valid.requested_actions.copy()
+    executed = valid.executed_positions.copy()
+    chunks = valid.raw_predicted_chunks.copy()
+    requested[9, 0] = np.inf
+    executed[10, 0] = np.inf
+    chunks[1, 2, 0] = np.inf
+    execution_info = {
+        **valid.info,
+        "success": False,
+        "numerical_failure": True,
+        "gym_numerical_failure": True,
+        "policy_generation_numerical_failure": True,
+        "policy_generation_nonfinite_chunk_indices": [1],
+    }
+    with pytest.raises(ValueError, match="executed_positions.*finite"):
+        replace(
+            valid,
+            executed_positions=executed,
+            requested_actions=requested,
+            raw_predicted_chunks=chunks,
+            success=False,
+            numerical_failure=True,
+            info=execution_info,
+        )
+
+
+def test_rollout_allows_one_zero_attempt_nonfinite_generation_record():
+    anchor = DEFAULT_CONFIG.environment.start_array()
+    chunks = np.repeat(anchor[None, None], 9, axis=1).astype(np.float32)
+    chunks[0, 0, 0] = np.nan
+
+    rollout = SFPDRollout(
+        seed=12,
+        initial_observation=np.array([-1.0, 0.0, 0.0], dtype=np.float32),
+        executed_positions=anchor[None],
+        requested_actions=np.empty((0, 2), dtype=np.float32),
+        raw_predicted_chunks=chunks,
+        executed_action_count=0,
+        success=False,
+        numerical_failure=True,
+        action_limit_failure=False,
+        info={
+            "action_attempt_count": 0,
+            "step_index": 0,
+            "action_limit_activation_count": 0,
+            "success": False,
+            "numerical_failure": True,
+            "action_limit_failure": False,
+            "gym_numerical_failure": False,
+            "policy_generation_numerical_failure": True,
+            "policy_generation_nonfinite_chunk_indices": [0],
+            "normalized_anchor_discrepancies": np.array(
+                [np.nan], dtype=np.float32
+            ),
+            "physical_anchor_discrepancies": np.array(
+                [np.nan], dtype=np.float32
+            ),
+        },
+    )
+
+    assert rollout.executed_action_count == 0
 
 
 def test_rollout_rejects_invalid_scalar_and_info_types():

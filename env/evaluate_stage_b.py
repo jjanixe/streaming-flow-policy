@@ -79,6 +79,11 @@ class SFPDRollout:
                     f"{name} must be a float32 NumPy array with shape {shape_text}"
                 )
 
+        if not np.isfinite(self.initial_observation).all():
+            raise ValueError("initial_observation must contain only finite values")
+        if not np.isfinite(self.executed_positions).all():
+            raise ValueError("executed_positions must contain only finite values")
+
         action_count = self.executed_action_count
         if len(self.requested_actions) != action_count:
             raise ValueError(
@@ -96,14 +101,24 @@ class SFPDRollout:
             )
 
         chunk_count = len(self.raw_predicted_chunks)
-        if chunk_count == 0:
-            valid_chunk_relationship = action_count == 0
-        else:
-            valid_chunk_relationship = (
-                8 * (chunk_count - 1) <= action_count <= 8 * chunk_count
+        expected_chunk_count = (action_count + 7) // 8
+        zero_attempt_generation_record = action_count == 0 and chunk_count == 1
+        if (
+            chunk_count != expected_chunk_count
+            and not zero_attempt_generation_record
+        ):
+            raise ValueError(
+                "chunk count must equal ceil(action count / 8)"
             )
-        if not valid_chunk_relationship:
-            raise ValueError("chunk count is inconsistent with action count")
+        generated_futures = self.raw_predicted_chunks[:, 1:, :].reshape(-1, 2)
+        if not np.array_equal(
+            self.requested_actions,
+            generated_futures[:action_count],
+            equal_nan=True,
+        ):
+            raise ValueError(
+                "requested_actions must match predicted chunk futures in order"
+            )
 
         required_info_counts = (
             "action_attempt_count",
@@ -203,6 +218,13 @@ class SFPDRollout:
         gym_numerical_failure = self.info.get("gym_numerical_failure")
         if type(gym_numerical_failure) is not bool:
             raise ValueError("info gym_numerical_failure must be a bool")
+        attempted_nonfinite_action = not np.isfinite(
+            self.requested_actions
+        ).all()
+        if gym_numerical_failure != attempted_nonfinite_action:
+            raise ValueError(
+                "info gym_numerical_failure must match attempted non-finite actions"
+            )
         policy_generation_failure = self.info.get(
             "policy_generation_numerical_failure"
         )
@@ -242,6 +264,17 @@ class SFPDRollout:
         ):
             raise ValueError(
                 "rollout numerical_failure must match combined numerical_failure"
+            )
+        if zero_attempt_generation_record and not (
+            policy_generation_failure
+            and nonfinite_chunk_indices == [0]
+            and self.numerical_failure
+            and not gym_numerical_failure
+            and not self.action_limit_failure
+        ):
+            raise ValueError(
+                "a zero-attempt chunk requires consistent non-finite "
+                "policy-generation failure evidence"
             )
 
 
