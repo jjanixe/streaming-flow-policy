@@ -63,9 +63,11 @@ class SFPDVelocityMLP(nn.Module):
         if timestep.shape[0] != batch_size or global_cond.shape[0] != batch_size:
             raise ValueError("sample, timestep, and global_cond must have the same batch size")
 
+        model_state = [*self.parameters(), *self.buffers()]
+        if any(value.dtype != torch.float32 for value in model_state):
+            raise ValueError("model parameters and buffers must have dtype float32")
         devices = {sample.device, timestep.device, global_cond.device}
-        parameter = next(self.parameters())
-        devices.add(parameter.device)
+        devices.update(value.device for value in model_state)
         if len(devices) != 1:
             raise ValueError("sample, timestep, global_cond, and model must share a device")
         if not all(torch.isfinite(value).all() for value in tensors.values()):

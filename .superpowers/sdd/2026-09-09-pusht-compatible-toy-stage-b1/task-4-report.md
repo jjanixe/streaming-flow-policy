@@ -44,3 +44,19 @@ UV_CACHE_DIR=/tmp/sfpd-uv-cache uv run pytest env/tests -q
 
 - The default uv cache is read-only in this environment, so test commands use `UV_CACHE_DIR=/tmp/sfpd-uv-cache`.
 - The device mismatch test is skipped because CUDA is unavailable; CPU validation and all other tests pass.
+
+## Fix round 1
+
+Reviewer finding addressed: forward validation now inspects every model parameter and registered buffer, including `time_features.frequencies`, requiring float32 dtype and a device shared with all inputs before feature construction or linear layers run.
+
+Added focused regressions for a model cast to float64 and an inconsistent Fourier-feature buffer device. The RED run showed the former was incorrectly accepted and the latter raised an unhelpful runtime device error. After the fix:
+
+```text
+UV_CACHE_DIR=/tmp/sfpd-uv-cache uv run pytest env/tests/test_models.py -v
+13 passed, 1 skipped, 1 warning
+
+UV_CACHE_DIR=/tmp/sfpd-uv-cache uv run pytest env/tests -q
+84 passed, 1 skipped, 3 warnings in 17.28s
+```
+
+The CUDA-only input-device regression remains skipped because CUDA is unavailable; the registered-buffer device regression uses the available meta device.

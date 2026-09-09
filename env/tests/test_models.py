@@ -34,6 +34,21 @@ def test_sfpd_velocity_mlp_rejects_float64():
         model(sample=sample.double(), timestep=time, global_cond=condition)
 
 
+def test_sfpd_velocity_mlp_rejects_float64_model():
+    model = SFPDVelocityMLP().double()
+    sample, time, condition = valid_inputs(1)
+    with pytest.raises(ValueError, match="float32"):
+        model(sample=sample, timestep=time, global_cond=condition)
+
+
+def test_sfpd_velocity_mlp_rejects_inconsistent_model_buffer_device():
+    model = SFPDVelocityMLP()
+    model.time_features.frequencies = model.time_features.frequencies.to("meta")
+    sample, time, condition = valid_inputs(1)
+    with pytest.raises(ValueError, match="device"):
+        model(sample=sample, timestep=time, global_cond=condition)
+
+
 @pytest.mark.parametrize(
     "which,bad",
     [
