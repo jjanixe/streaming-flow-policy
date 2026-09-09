@@ -148,9 +148,12 @@ After normalization and padding, enforce the repository's anchor correction:
 
 Equality is checked elementwise exactly as in PushT, and the action window is
 copied before mutation. Because the toy's observation-position and shifted
-action statistics can differ slightly at an endpoint, the runner records the
-raw-coordinate size of every anchor correction. The baseline retains the PushT
-behavior instead of silently substituting a different shared normalization.
+action statistics can differ slightly at an endpoint, normalized equality does
+not guarantee physical-coordinate equality. The runner therefore records both
+the raw-coordinate size of any correction and the physical discrepancy between
+the observation anchor and inverse-transformed action anchor, including when no
+normalized correction fires. The baseline retains the PushT behavior instead of
+silently substituting a different shared normalization.
 
 The dataset keeps trajectory ID, source split, sequence start `r`, conceptual
 anchor `q`, and padding extents as diagnostic metadata. These fields and any
