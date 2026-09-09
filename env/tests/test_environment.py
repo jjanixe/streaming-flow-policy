@@ -5,7 +5,7 @@ import warnings
 from gym.utils.env_checker import check_env
 
 import env
-from env.config import DEFAULT_CONFIG
+from env.config import DEFAULT_CONFIG, EnvironmentConfig
 from env.environment import PointReach2DPreferenceEnv
 
 
@@ -58,35 +58,125 @@ def test_seeded_gaussian_reset_is_reproducible():
     assert not np.array_equal(first[:2], DEFAULT_CONFIG.environment.start_array())
 
 
-def test_action_is_followed_without_clipping_and_horizon_terminates():
+def test_actions_within_limit_are_followed_exactly_until_horizon():
     instance = PointReach2DPreferenceEnv()
     instance.reset(seed=0, options={"center_init": True})
-    far_position = np.array([9.0, -4.0], dtype=np.float32)
+    positions = np.linspace(
+        DEFAULT_CONFIG.environment.start_array(),
+        DEFAULT_CONFIG.environment.goal_array(),
+        DEFAULT_CONFIG.environment.horizon_steps + 1,
+        dtype=np.float32,
+    )[1:]
 
-    for step in range(DEFAULT_CONFIG.environment.horizon_steps):
-        observation, reward, terminated, truncated, info = instance.step(far_position)
+    for step, position in enumerate(positions):
+        observation, reward, terminated, truncated, info = instance.step(position)
         assert reward == 0.0
         assert truncated is False
         assert terminated is (
             step == DEFAULT_CONFIG.environment.horizon_steps - 1
         )
 
-    np.testing.assert_array_equal(observation[:2], far_position)
-    assert info["outside_visualization"] is True
+    np.testing.assert_array_equal(observation[:2], positions[-1])
+    assert info["success"] is True
+    assert info["action_attempt_count"] == 64
+    assert info["action_limit_activation_count"] == 0
+    assert info["action_limit_activation_rate"] == 0.0
+
+
+def test_action_above_limit_terminates_without_moving_or_clipping():
+    instance = PointReach2DPreferenceEnv()
+    initial, _ = instance.reset(seed=0, options={"center_init": True})
+    requested = np.array([-0.9, 0.0], dtype=np.float32)
+
+    observation, reward, terminated, truncated, info = instance.step(requested)
+
+    np.testing.assert_array_equal(observation[:2], initial[:2])
+    np.testing.assert_array_equal(instance._trajectory, initial[None, :2])
+    assert (reward, terminated, truncated) == (0.0, True, False)
+    assert info["step_index"] == 0
+    assert info["success"] is False
+    assert info["action_limit_failure"] is True
+    assert info["action_attempt_count"] == 1
+    assert info["action_limit_activation_count"] == 1
+    assert info["action_limit_activation_rate"] == 1.0
+    assert info["requested_step_distance"] == pytest.approx(0.1)
+    assert info["max_requested_step_distance"] == pytest.approx(0.1)
+
+
+def test_action_limit_metrics_accumulate_and_reset():
+    instance = PointReach2DPreferenceEnv()
+    instance.reset(seed=0, options={"center_init": True})
+    _, _, terminated, _, info = instance.step(
+        np.array([-0.95, 0.0], dtype=np.float32)
+    )
+
+    assert terminated is False
+    assert info["action_attempt_count"] == 1
+    assert info["action_limit_activation_count"] == 0
+    assert info["action_limit_activation_rate"] == 0.0
+    assert info["requested_step_distance"] == pytest.approx(0.05)
+
+    _, _, terminated, _, info = instance.step(
+        np.array([-0.85, 0.0], dtype=np.float32)
+    )
+
+    assert terminated is True
+    assert info["action_attempt_count"] == 2
+    assert info["action_limit_activation_count"] == 1
+    assert info["action_limit_activation_rate"] == 0.5
+
+    _, reset_info = instance.reset(seed=0, options={"center_init": True})
+
+    assert reset_info["action_attempt_count"] == 0
+    assert reset_info["action_limit_activation_count"] == 0
+    assert reset_info["action_limit_activation_rate"] == 0.0
+    assert reset_info["requested_step_distance"] is None
+    assert reset_info["max_requested_step_distance"] == 0.0
+    assert reset_info["action_limit_failure"] is False
+
+
+def test_action_at_float32_limit_is_accepted():
+    instance = PointReach2DPreferenceEnv()
+    initial, _ = instance.reset(seed=0, options={"center_init": True})
+    requested = initial[:2] + np.array(
+        [0.0, DEFAULT_CONFIG.environment.max_step_distance],
+        dtype=np.float32,
+    )
+
+    observation, _, terminated, _, info = instance.step(requested)
+
+    np.testing.assert_array_equal(observation[:2], requested)
+    assert terminated is False
+    assert info["action_limit_failure"] is False
+    assert info["action_limit_activation_count"] == 0
+
+
+@pytest.mark.parametrize("max_step_distance", [0.0, -0.1, float("nan")])
+def test_environment_config_rejects_invalid_max_step_distance(max_step_distance):
+    with pytest.raises(ValueError, match="max_step_distance"):
+        EnvironmentConfig(max_step_distance=max_step_distance)
 
 
 def test_numerical_failure_preserves_last_state():
     instance = PointReach2DPreferenceEnv()
-    initial, _ = instance.reset(seed=0, options={"center_init": True})
+    instance.reset(seed=0, options={"center_init": True})
+    last_valid, _, _, _, _ = instance.step(
+        np.array([-0.95, 0.0], dtype=np.float32)
+    )
 
     observation, reward, terminated, truncated, info = instance.step(
         np.array([np.nan, 0.0], dtype=np.float32)
     )
 
-    np.testing.assert_array_equal(observation[:2], initial[:2])
+    np.testing.assert_array_equal(observation[:2], last_valid[:2])
     assert (reward, terminated, truncated) == (0.0, True, False)
     assert info["numerical_failure"] is True
     assert info["success"] is False
+    assert info["action_attempt_count"] == 2
+    assert info["action_limit_activation_count"] == 0
+    assert info["action_limit_activation_rate"] == 0.0
+    assert info["requested_step_distance"] is None
+    assert info["max_requested_step_distance"] == pytest.approx(0.05)
 
 
 def test_bad_action_shape_and_post_terminal_step_raise():
@@ -116,13 +206,13 @@ def test_rgb_array_render_has_stable_shape_and_tracks_episode():
         assert initial_frame.dtype == np.uint8
         assert np.unique(initial_frame.reshape(-1, 3), axis=0).shape[0] > 4
 
-        far_position = np.array([9.0, -4.0], dtype=np.float32)
-        observation, _, _, _, info = instance.step(far_position)
+        next_position = np.array([-0.95, -0.02], dtype=np.float32)
+        observation, _, _, _, info = instance.step(next_position)
         stepped_frame = instance.render()
         assert not np.array_equal(stepped_frame, initial_frame)
-        np.testing.assert_array_equal(observation[:2], far_position)
-        np.testing.assert_array_equal(instance._position, far_position)
-        assert info["outside_visualization"] is True
+        np.testing.assert_array_equal(observation[:2], next_position)
+        np.testing.assert_array_equal(instance._position, next_position)
+        assert info["outside_visualization"] is False
 
         instance.reset(seed=0, options={"center_init": True})
         reset_frame = instance.render()
@@ -146,7 +236,7 @@ def test_human_render_is_automatic_and_closes_owned_pygame(monkeypatch):
     try:
         instance.reset(seed=0, options={"center_init": True})
         assert instance.render_calls == 1
-        instance.step(np.array([-0.8, 0.1], dtype=np.float32))
+        instance.step(np.array([-0.95, 0.02], dtype=np.float32))
         assert instance.render_calls == 2
 
         import pygame

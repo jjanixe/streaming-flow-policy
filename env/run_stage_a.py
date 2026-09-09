@@ -87,6 +87,57 @@ def classify_midpoint_modes(samples: torch.Tensor) -> dict[str, float]:
     }
 
 
+def action_limit_diagnostics(
+    trajectories: torch.Tensor,
+    max_step_distance: float,
+) -> dict[str, Any]:
+    if (
+        not isinstance(trajectories, torch.Tensor)
+        or trajectories.ndim != 3
+        or trajectories.shape[0] < 1
+        or trajectories.shape[1] < 2
+        or trajectories.shape[2] != 2
+    ):
+        raise ValueError(
+            "trajectories must be a Torch tensor with shape [N, T, 2]"
+        )
+    if trajectories.dtype != torch.float32:
+        raise ValueError("trajectories must use float32")
+    if not math.isfinite(max_step_distance) or max_step_distance <= 0.0:
+        raise ValueError("max_step_distance must be finite and positive")
+
+    distances = torch.linalg.vector_norm(
+        torch.diff(trajectories, dim=1),
+        dim=-1,
+    )
+    limit = trajectories.new_tensor(max_step_distance)
+    finite = torch.isfinite(distances)
+    activated = finite & (distances > limit)
+    activated_by_trajectory = activated.any(dim=1)
+    activated_indices = torch.nonzero(
+        activated_by_trajectory,
+        as_tuple=False,
+    ).flatten()
+    action_count = distances.numel()
+    activation_count = int(activated.sum().item())
+    finite_distances = distances[finite]
+    max_requested_step_distance = (
+        float(finite_distances.max().item()) if len(finite_distances) else None
+    )
+    return {
+        "max_step_distance": float(max_step_distance),
+        "action_count": action_count,
+        "activation_count": activation_count,
+        "activation_rate": activation_count / action_count,
+        "activated_trajectory_count": int(activated_by_trajectory.sum().item()),
+        "activated_trajectory_rate": float(
+            activated_by_trajectory.float().mean().item()
+        ),
+        "activated_trajectory_indices": activated_indices.tolist(),
+        "max_requested_step_distance": max_requested_step_distance,
+    }
+
+
 def _seed_value(sequence: np.random.SeedSequence) -> int:
     return int(sequence.generate_state(1, dtype=np.uint32)[0])
 
@@ -94,6 +145,7 @@ def _seed_value(sequence: np.random.SeedSequence) -> int:
 def _sampler_diagnostics(
     rollout: torch.Tensor,
     references: dict[str, torch.Tensor],
+    max_step_distance: float,
 ) -> dict[str, Any]:
     time_metrics: dict[str, dict[str, float | int | None]] = {}
     for label, index in DIAGNOSTIC_INDICES.items():
@@ -120,6 +172,10 @@ def _sampler_diagnostics(
         ),
         "nonfinite_state_count": int(
             (~torch.isfinite(rollout).all(dim=-1)).sum().item()
+        ),
+        "action_limit": action_limit_diagnostics(
+            rollout,
+            max_step_distance=max_step_distance,
         ),
     }
 
@@ -258,8 +314,16 @@ def run_stage_a(
         )
 
     sampler_diagnostics = {
-        "ode": _sampler_diagnostics(ode_positions, references),
-        "sde": _sampler_diagnostics(sde_positions, references),
+        "ode": _sampler_diagnostics(
+            ode_positions,
+            references,
+            max_step_distance=config.environment.max_step_distance,
+        ),
+        "sde": _sampler_diagnostics(
+            sde_positions,
+            references,
+            max_step_distance=config.environment.max_step_distance,
+        ),
     }
     failures = acceptance_failures(sampler_diagnostics)
     diagnostics: dict[str, Any] = {

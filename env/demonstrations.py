@@ -218,7 +218,7 @@ def generate_demonstration_bank(
                 positions.append(path)
                 derivatives.append(derivative)
 
-    return DemonstrationBank(
+    bank = DemonstrationBank(
         trajectory_ids=np.asarray(trajectory_ids, dtype=np.str_),
         splits=np.asarray(splits, dtype=np.str_),
         modes=np.asarray(mode_names, dtype=np.str_),
@@ -229,3 +229,15 @@ def generate_demonstration_bank(
         positions=np.stack(positions).astype(np.float32),
         derivatives=np.stack(derivatives).astype(np.float32),
     )
+    step_distances = np.linalg.norm(np.diff(bank.positions, axis=1), axis=-1)
+    observed_maximum_value = step_distances.max()
+    observed_maximum = float(observed_maximum_value)
+    if observed_maximum_value > np.float32(
+        config.environment.max_step_distance
+    ):
+        raise ValueError(
+            "expert trajectory step distance "
+            f"{observed_maximum:.8f} exceeds max_step_distance "
+            f"{config.environment.max_step_distance:.8f}"
+        )
+    return bank

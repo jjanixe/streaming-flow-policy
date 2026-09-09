@@ -14,6 +14,14 @@ class EnvironmentConfig:
     goal_tolerance: float = 0.10
     visualization_x: tuple[float, float] = (-1.3, 1.3)
     visualization_y: tuple[float, float] = (-0.9, 0.9)
+    max_step_distance: float = 0.075
+
+    def __post_init__(self) -> None:
+        if (
+            not np.isfinite(self.max_step_distance)
+            or self.max_step_distance <= 0.0
+        ):
+            raise ValueError("max_step_distance must be finite and positive")
 
     def start_array(self) -> np.ndarray:
         return np.asarray(self.start, dtype=np.float32)

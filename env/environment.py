@@ -44,6 +44,11 @@ class PointReach2DPreferenceEnv(gym.Env):
         self._step_index = 0
         self._done = False
         self._numerical_failure = False
+        self._action_limit_failure = False
+        self._action_attempt_count = 0
+        self._action_limit_activation_count = 0
+        self._requested_step_distance: float | None = None
+        self._max_requested_step_distance = 0.0
         self._max_abs_x = float(abs(self._position[0]))
         self._max_abs_y = float(abs(self._position[1]))
 
@@ -68,6 +73,11 @@ class PointReach2DPreferenceEnv(gym.Env):
         self._step_index = 0
         self._done = False
         self._numerical_failure = False
+        self._action_limit_failure = False
+        self._action_attempt_count = 0
+        self._action_limit_activation_count = 0
+        self._requested_step_distance = None
+        self._max_requested_step_distance = 0.0
         self._max_abs_x = float(abs(self._position[0]))
         self._max_abs_y = float(abs(self._position[1]))
         observation = self._observation()
@@ -87,9 +97,30 @@ class PointReach2DPreferenceEnv(gym.Env):
         if value.shape != (2,):
             raise ValueError(f"action must have shape (2,), got {value.shape}")
 
+        self._action_attempt_count += 1
+        self._requested_step_distance = None
         if not np.isfinite(value).all():
             self._done = True
             self._numerical_failure = True
+            observation = self._observation()
+            info = self._info()
+            if self.render_mode == "human":
+                self.render()
+            return observation, 0.0, True, False, info
+
+        requested_step_distance_value = np.linalg.norm(value - self._position)
+        requested_step_distance = float(requested_step_distance_value)
+        self._requested_step_distance = requested_step_distance
+        self._max_requested_step_distance = max(
+            self._max_requested_step_distance,
+            requested_step_distance,
+        )
+        if requested_step_distance_value > np.float32(
+            self.config.max_step_distance
+        ):
+            self._done = True
+            self._action_limit_failure = True
+            self._action_limit_activation_count += 1
             observation = self._observation()
             info = self._info()
             if self.render_mode == "human":
@@ -141,8 +172,14 @@ class PointReach2DPreferenceEnv(gym.Env):
         success = (
             self._done
             and not self._numerical_failure
+            and not self._action_limit_failure
             and self._step_index == self.config.horizon_steps
             and goal_error <= self.config.goal_tolerance
+        )
+        action_limit_activation_rate = (
+            self._action_limit_activation_count / self._action_attempt_count
+            if self._action_attempt_count
+            else 0.0
         )
         return {
             "step_index": self._step_index,
@@ -152,6 +189,12 @@ class PointReach2DPreferenceEnv(gym.Env):
             "goal_error": goal_error,
             "success": success,
             "numerical_failure": self._numerical_failure,
+            "action_limit_failure": self._action_limit_failure,
+            "action_attempt_count": self._action_attempt_count,
+            "action_limit_activation_count": self._action_limit_activation_count,
+            "action_limit_activation_rate": action_limit_activation_rate,
+            "requested_step_distance": self._requested_step_distance,
+            "max_requested_step_distance": self._max_requested_step_distance,
             "outside_visualization": outside_visualization,
             "max_abs_x": self._max_abs_x,
             "max_abs_y": self._max_abs_y,

@@ -16,11 +16,20 @@ instance = gym.make("PointReach2DPreference-v0")
 observation, info = instance.reset(seed=0)
 ~~~
 
-The observation is float32 [x, y, t]. An action is the next float32 [x, y]
-position and is followed exactly. Finite actions are never clipped. Every step
-returns reward 0.0; task success and goal error are reported through info.
-Episodes end after exactly 64 actions unless a NaN or infinite action causes a
-recorded numerical failure.
+The observation is float32 [x, y, t]. An action is an absolute next float32
+[x, y] position. The environment follows it exactly when its L2 distance from
+the current position is at most `max_step_distance=0.075`; it never projects or
+clips an invalid command. A finite command above that limit preserves the last
+valid state and terminates the episode with `action_limit_failure=True`. NaN or
+infinite commands similarly terminate with a recorded numerical failure.
+
+The Gym action space remains an unbounded float32 Box because the valid L2 ball
+is centered on the current state and therefore cannot be represented by one
+static Box. Runtime `info` reports `action_attempt_count`,
+`action_limit_activation_count`, `action_limit_activation_rate`, and the last
+and maximum requested step distances. Every step returns reward 0.0; task
+success and goal error are also reported through `info`. A normal episode ends
+after exactly 64 accepted actions.
 
 ### Rendering
 
@@ -45,8 +54,8 @@ frame = instance.render()
 The four light reference curves represent the upper/lower narrow/wide modes.
 The dark line is the current episode trajectory, the purple dot is the current
 position, and the green circle is the goal tolerance. Rendering clips only the
-display coordinates at the configured visualization boundary; environment
-states and actions remain unbounded and unchanged.
+display coordinates at the configured visualization boundary. It does not
+alter valid environment states or actions.
 
 Gym 0.26 refers to the removed NumPy 2 name np.bool8. Importing env supplies the
 equivalent np.bool_ alias so Gym's standard checker and wrappers work in the
@@ -76,6 +85,13 @@ sample stream, reducing comparison noise without coupling either rollout
 sampler. Its accepted field, not the Gym reward, records whether Stage A meets
 the configured marginal-error and midpoint mode-coverage criteria. Any
 non-finite state, metric, or occupancy fails acceptance.
+
+Expert generation verifies that every consecutive waypoint is within the same
+configured movement limit. Each ODE/SDE sampler diagnostic also records the
+number and rate of would-be action-limit activations, plus the indices of
+trajectories that activated the limit. These analytic diagnostic rollouts are
+left intact rather than clipped, so the affected trajectories can be inspected
+separately.
 
 All floating-point NumPy arrays and Torch tensors use float32. String IDs and
 integer RNG metadata retain their natural dtypes. For finite actions so extreme

@@ -23,6 +23,24 @@ def test_all_modes_have_exact_float32_endpoints():
     assert bank.times.dtype == np.float32
     assert bank.signs.dtype == np.float32
     assert bank.amplitudes.dtype == np.float32
+    step_distances = np.linalg.norm(np.diff(bank.positions, axis=1), axis=-1)
+    assert (
+        float(step_distances.max())
+        <= DEFAULT_CONFIG.environment.max_step_distance
+    )
+
+
+def test_generation_rejects_expert_steps_above_environment_limit():
+    constrained = replace(
+        DEFAULT_CONFIG,
+        environment=replace(
+            DEFAULT_CONFIG.environment,
+            max_step_distance=0.01,
+        ),
+    )
+
+    with pytest.raises(ValueError, match="expert.*max_step_distance"):
+        generate_demonstration_bank(constrained, seed=13)
 
 
 def test_analytic_derivative_matches_float32_central_difference():

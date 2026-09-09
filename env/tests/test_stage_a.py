@@ -7,6 +7,7 @@ import torch
 
 from env.run_stage_a import (
     acceptance_failures,
+    action_limit_diagnostics,
     classify_midpoint_modes,
     run_stage_a,
     sample_errors,
@@ -70,6 +71,46 @@ def test_sample_errors_reject_nonfinite_inputs():
 
     with pytest.raises(ValueError, match="finite"):
         sample_errors(samples, torch.zeros_like(samples))
+
+
+def test_action_limit_diagnostics_reports_activated_trajectories_separately():
+    trajectories = torch.tensor(
+        [
+            [[0.0, 0.0], [0.03, 0.0], [0.06, 0.0]],
+            [[0.0, 0.0], [0.08, 0.0], [0.09, 0.0]],
+            [[0.0, 0.0], [0.00, 0.08], [0.00, 0.16]],
+        ],
+        dtype=torch.float32,
+    )
+
+    diagnostics = action_limit_diagnostics(trajectories, max_step_distance=0.075)
+
+    assert diagnostics == pytest.approx(
+        {
+            "max_step_distance": 0.075,
+            "action_count": 6,
+            "activation_count": 3,
+            "activation_rate": 0.5,
+            "activated_trajectory_count": 2,
+            "activated_trajectory_rate": 2.0 / 3.0,
+            "activated_trajectory_indices": [1, 2],
+            "max_requested_step_distance": 0.08,
+        }
+    )
+
+
+def test_action_limit_diagnostics_requires_float32_trajectories():
+    trajectories = torch.zeros((2, 3, 2), dtype=torch.float64)
+
+    with pytest.raises(ValueError, match="float32"):
+        action_limit_diagnostics(trajectories, max_step_distance=0.075)
+
+
+def test_action_limit_diagnostics_rejects_empty_batch():
+    trajectories = torch.zeros((0, 3, 2), dtype=torch.float32)
+
+    with pytest.raises(ValueError, match="shape"):
+        action_limit_diagnostics(trajectories, max_step_distance=0.075)
 
 
 def _passing_sampler_diagnostics():
@@ -140,6 +181,12 @@ def test_small_stage_a_run_writes_complete_artifacts(tmp_path):
         "other",
         "nonfinite",
     }
+    for sampler in result["samplers"].values():
+        action_limit = sampler["action_limit"]
+        assert action_limit["action_count"] == 128 * 64
+        assert isinstance(action_limit["activation_count"], int)
+        assert isinstance(action_limit["activation_rate"], float)
+        assert isinstance(action_limit["activated_trajectory_indices"], list)
     for name in (
         "demonstrations.npz",
         "feature_normalizer.npz",
