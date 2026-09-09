@@ -125,5 +125,5 @@ def save_json(path: str | Path, payload: dict[str, Any]) -> None:
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     with destination.open("w", encoding="utf-8") as stream:
-        json.dump(payload, stream, indent=2, sort_keys=True)
+        json.dump(payload, stream, indent=2, sort_keys=True, allow_nan=False)
         stream.write("\n")

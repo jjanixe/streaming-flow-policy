@@ -1,6 +1,8 @@
 import json
+from dataclasses import replace
 
 import numpy as np
+import pytest
 
 from env.artifacts import (
     load_demonstration_bank,
@@ -71,3 +73,15 @@ def test_rollouts_and_json_are_written_in_portable_formats(tmp_path):
         assert payload["sde_positions"].dtype == np.float32
     with json_path.open(encoding="utf-8") as stream:
         assert json.load(stream) == {"accepted": True, "count": 3}
+
+
+def test_demonstration_bank_rejects_pickle_backed_metadata():
+    bank = generate_demonstration_bank(DEFAULT_CONFIG, seed=5)
+
+    with pytest.raises(ValueError, match="Unicode"):
+        replace(bank, trajectory_ids=bank.trajectory_ids.astype(object))
+
+
+def test_json_rejects_nonfinite_numbers(tmp_path):
+    with pytest.raises(ValueError, match="JSON compliant"):
+        save_json(tmp_path / "invalid.json", {"metric": float("nan")})

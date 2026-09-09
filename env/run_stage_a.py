@@ -1,5 +1,6 @@
 import argparse
 import json
+import math
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -50,6 +51,8 @@ def sample_errors(
         or len(samples) < 2
     ):
         raise ValueError("samples and reference must share shape [N, 2], N >= 2")
+    if not torch.isfinite(samples).all() or not torch.isfinite(reference).all():
+        raise ValueError("samples and reference must be finite")
     mean_error = torch.linalg.vector_norm(
         samples.mean(dim=0) - reference.mean(dim=0)
     )
@@ -62,19 +65,21 @@ def sample_errors(
 
 
 def classify_midpoint_modes(samples: torch.Tensor) -> dict[str, float]:
-    if samples.ndim != 2 or samples.shape[-1] != 2:
-        raise ValueError("samples must have shape [N, 2]")
+    if samples.ndim != 2 or samples.shape[-1] != 2 or len(samples) == 0:
+        raise ValueError("samples must have shape [N, 2], N >= 1")
     if samples.dtype != torch.float32:
         raise ValueError("samples must use float32")
     y = samples[:, 1]
-    other = y.abs() < 0.12
-    wide = y.abs() >= 0.40
+    finite = torch.isfinite(samples).all(dim=1)
+    other = finite & (y.abs() < 0.12)
+    wide = finite & (y.abs() >= 0.40)
     occupancy = {
-        "upper-narrow": (~other & ~wide & (y > 0.0)).float().mean(),
-        "upper-wide": (~other & wide & (y > 0.0)).float().mean(),
-        "lower-narrow": (~other & ~wide & (y < 0.0)).float().mean(),
-        "lower-wide": (~other & wide & (y < 0.0)).float().mean(),
+        "upper-narrow": (finite & ~other & ~wide & (y > 0.0)).float().mean(),
+        "upper-wide": (finite & ~other & wide & (y > 0.0)).float().mean(),
+        "lower-narrow": (finite & ~other & ~wide & (y < 0.0)).float().mean(),
+        "lower-wide": (finite & ~other & wide & (y < 0.0)).float().mean(),
         "other": other.float().mean(),
+        "nonfinite": (~finite).float().mean(),
     }
     return {
         name: float(probability.item())
@@ -90,51 +95,107 @@ def _sampler_diagnostics(
     rollout: torch.Tensor,
     references: dict[str, torch.Tensor],
 ) -> dict[str, Any]:
-    time_metrics: dict[str, dict[str, float]] = {}
+    time_metrics: dict[str, dict[str, float | int | None]] = {}
     for label, index in DIAGNOSTIC_INDICES.items():
-        mean_error, covariance_error = sample_errors(
-            rollout[:, index],
-            references[label],
-        )
+        samples = rollout[:, index]
+        reference = references[label]
+        finite_rows = torch.isfinite(samples).all(dim=1) & torch.isfinite(
+            reference
+        ).all(dim=1)
+        nonfinite_count = int((~finite_rows).sum().item())
+        if nonfinite_count:
+            mean_error = None
+            covariance_error = None
+        else:
+            mean_error, covariance_error = sample_errors(samples, reference)
         time_metrics[label] = {
             "mean_l2_error": mean_error,
             "covariance_frobenius_error": covariance_error,
+            "nonfinite_count": nonfinite_count,
         }
     return {
         "times": time_metrics,
         "midpoint_occupancy": classify_midpoint_modes(
             rollout[:, DIAGNOSTIC_INDICES["0.5"]]
         ),
+        "nonfinite_state_count": int(
+            (~torch.isfinite(rollout).all(dim=-1)).sum().item()
+        ),
     }
 
 
-def _acceptance_failures(samplers: dict[str, Any]) -> list[str]:
+def acceptance_failures(samplers: dict[str, Any]) -> list[str]:
     failures: list[str] = []
     for sampler_name, diagnostics in samplers.items():
+        nonfinite_states = diagnostics.get("nonfinite_state_count", 0)
+        if not isinstance(nonfinite_states, int) or nonfinite_states != 0:
+            failures.append(
+                f"{sampler_name} contains {nonfinite_states} non-finite states"
+            )
         for time_label, metrics in diagnostics["times"].items():
-            if metrics["mean_l2_error"] > MEAN_ERROR_LIMIT:
+            if metrics.get("nonfinite_count", 0) != 0:
+                failures.append(
+                    f"{sampler_name} has non-finite samples at {time_label}"
+                )
+            mean_error = metrics["mean_l2_error"]
+            covariance_error = metrics["covariance_frobenius_error"]
+            if mean_error is None or not math.isfinite(mean_error):
+                failures.append(
+                    f"{sampler_name} has non-finite mean error at {time_label}"
+                )
+            elif mean_error > MEAN_ERROR_LIMIT:
                 failures.append(
                     f"{sampler_name} mean error at {time_label} exceeds "
                     f"{MEAN_ERROR_LIMIT}"
                 )
-            if (
-                metrics["covariance_frobenius_error"]
-                > COVARIANCE_ERROR_LIMIT
-            ):
+            if covariance_error is None or not math.isfinite(covariance_error):
+                failures.append(
+                    f"{sampler_name} has non-finite covariance error at "
+                    f"{time_label}"
+                )
+            elif covariance_error > COVARIANCE_ERROR_LIMIT:
                 failures.append(
                     f"{sampler_name} covariance error at {time_label} exceeds "
                     f"{COVARIANCE_ERROR_LIMIT}"
                 )
         occupancy = diagnostics["midpoint_occupancy"]
+        occupancy_names = (*MODE_NAMES, "other", "nonfinite")
+        invalid_occupancies = [
+            name
+            for name in occupancy_names
+            if name not in occupancy or not math.isfinite(occupancy[name])
+        ]
+        for name in invalid_occupancies:
+            failures.append(
+                f"{sampler_name} has non-finite midpoint occupancy for {name}"
+            )
+        if not invalid_occupancies and not math.isclose(
+            sum(occupancy[name] for name in occupancy_names),
+            1.0,
+            rel_tol=0.0,
+            abs_tol=1e-6,
+        ):
+            failures.append(
+                f"{sampler_name} midpoint occupancies do not sum to 1"
+            )
         for mode_name in MODE_NAMES:
-            if abs(occupancy[mode_name] - 0.25) > MODE_ERROR_LIMIT:
+            if mode_name not in invalid_occupancies and (
+                abs(occupancy[mode_name] - 0.25) > MODE_ERROR_LIMIT
+            ):
                 failures.append(
                     f"{sampler_name} {mode_name} occupancy differs from 0.25 "
                     f"by more than {MODE_ERROR_LIMIT}"
                 )
-        if occupancy["other"] > OTHER_LIMIT:
+        if "other" not in invalid_occupancies and occupancy["other"] > OTHER_LIMIT:
             failures.append(
                 f"{sampler_name} other occupancy exceeds {OTHER_LIMIT}"
+            )
+        if (
+            "nonfinite" not in invalid_occupancies
+            and occupancy["nonfinite"] > 0.0
+        ):
+            failures.append(
+                f"{sampler_name} midpoint occupancy contains non-finite samples"
             )
     return failures
 
@@ -200,7 +261,7 @@ def run_stage_a(
         "ode": _sampler_diagnostics(ode_positions, references),
         "sde": _sampler_diagnostics(sde_positions, references),
     }
-    failures = _acceptance_failures(sampler_diagnostics)
+    failures = acceptance_failures(sampler_diagnostics)
     diagnostics: dict[str, Any] = {
         "version": "toy-v0.1-stage-a",
         "seed": seed,

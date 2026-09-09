@@ -33,6 +33,32 @@ class DemonstrationBank:
     derivatives: np.ndarray
 
     def __post_init__(self) -> None:
+        array_names = (
+            "trajectory_ids",
+            "splits",
+            "modes",
+            "signs",
+            "amplitudes",
+            "replay_seeds",
+            "times",
+            "positions",
+            "derivatives",
+        )
+        for name in array_names:
+            if not isinstance(getattr(self, name), np.ndarray):
+                raise ValueError(f"{name} must be a NumPy array")
+        for name in ("trajectory_ids", "splits", "modes"):
+            values = getattr(self, name)
+            if values.ndim != 1 or values.dtype.kind != "U":
+                raise ValueError(f"{name} must be a one-dimensional Unicode array")
+        if self.replay_seeds.ndim != 1 or self.replay_seeds.dtype != np.uint32:
+            raise ValueError("replay_seeds must be a one-dimensional uint32 array")
+        for name in ("signs", "amplitudes"):
+            if getattr(self, name).ndim != 1:
+                raise ValueError(f"{name} must be one-dimensional")
+        if self.times.ndim != 1:
+            raise ValueError("times must be one-dimensional")
+
         count = len(self.trajectory_ids)
         for name in ("splits", "modes", "signs", "amplitudes", "replay_seeds"):
             if len(getattr(self, name)) != count:
@@ -45,9 +71,16 @@ class DemonstrationBank:
         for name in ("times", "positions", "derivatives", "signs", "amplitudes"):
             if getattr(self, name).dtype != np.float32:
                 raise ValueError(f"{name} must use float32")
-        if not np.isfinite(self.positions).all() or not np.isfinite(
-            self.derivatives
-        ).all():
+        if not all(
+            np.isfinite(getattr(self, name)).all()
+            for name in (
+                "times",
+                "positions",
+                "derivatives",
+                "signs",
+                "amplitudes",
+            )
+        ):
             raise ValueError("demonstration values must be finite")
 
     def __len__(self) -> int:

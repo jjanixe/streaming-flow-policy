@@ -45,11 +45,17 @@ The command writes:
 
 Generated artifacts are ignored by Git. diagnostics.json compares analytic ODE
 and SDE rollout marginals against samples from the target train-bank Gaussian
-mixture. Its accepted field, not the Gym reward, records whether Stage A meets
-the configured marginal-error and midpoint mode-coverage criteria.
+mixture. ODE and SDE diagnostics intentionally share the same target-reference
+sample stream, reducing comparison noise without coupling either rollout
+sampler. Its accepted field, not the Gym reward, records whether Stage A meets
+the configured marginal-error and midpoint mode-coverage criteria. Any
+non-finite state, metric, or occupancy fails acceptance.
 
 All floating-point NumPy arrays and Torch tensors use float32. String IDs and
-integer RNG metadata retain their natural dtypes.
+integer RNG metadata retain their natural dtypes. For finite actions so extreme
+that a true log density falls below the float32 range, the reported log density
+saturates at the smallest finite float32 value; mixture responsibilities remain
+finite and normalized.
 
 ## Tests
 

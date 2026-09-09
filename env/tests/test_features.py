@@ -6,6 +6,7 @@ import pytest
 from env.config import DEFAULT_CONFIG
 from env.demonstrations import generate_demonstration_bank
 from env.features import (
+    FeatureNormalizer,
     fit_feature_normalizer,
     raw_trajectory_features,
     trajectory_feature_parts,
@@ -84,4 +85,14 @@ def test_invalid_prefix_boundary_is_rejected():
             normalizer,
             prefix_steps=65,
             dt=1.0 / 64.0,
+        )
+
+
+@pytest.mark.parametrize("y_scale", [0.0, -1.0, float("nan"), float("inf")])
+def test_normalizer_rejects_invalid_y_scale(y_scale):
+    with pytest.raises(ValueError, match="y_scale"):
+        FeatureNormalizer(
+            mu=np.zeros(2, dtype=np.float32),
+            scale=np.ones(2, dtype=np.float32),
+            y_scale=y_scale,
         )

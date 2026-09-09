@@ -93,3 +93,26 @@ def test_input_contract_is_enforced(analytic_field):
             torch.zeros((1, 2), dtype=torch.float64),
             torch.zeros(1),
         )
+
+
+def test_finite_extreme_actions_produce_finite_fields(analytic_field):
+    actions = torch.tensor(
+        [[1e18, 0.0], [-1e18, 1e18]],
+        dtype=torch.float32,
+    )
+    times = torch.tensor([1.0, 0.5], dtype=torch.float32)
+
+    weights = analytic_field.responsibilities(actions, times)
+    outputs = (
+        analytic_field.log_density(actions, times),
+        analytic_field.velocity_pf(actions, times),
+        analytic_field.score(actions, times),
+        analytic_field.base_sde_drift(actions, times),
+    )
+
+    assert torch.isfinite(weights).all()
+    torch.testing.assert_close(
+        weights.sum(dim=1),
+        torch.ones(2, dtype=torch.float32),
+    )
+    assert all(torch.isfinite(output).all() for output in outputs)

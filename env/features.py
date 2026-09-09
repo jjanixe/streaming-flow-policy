@@ -21,6 +21,10 @@ class FeatureNormalizer:
             raise ValueError("feature normalizer arrays must be finite")
         if np.any(self.scale <= 0.0):
             raise ValueError("feature normalizer scale must be positive")
+        if not isinstance(self.y_scale, (float, int, np.floating)) or (
+            not np.isfinite(self.y_scale) or self.y_scale <= 0.0
+        ):
+            raise ValueError("feature normalizer y_scale must be finite and positive")
 
 
 def _positions(values: np.ndarray) -> np.ndarray:
@@ -37,8 +41,8 @@ def raw_step_features(
     y_scale: float,
 ) -> np.ndarray:
     values = _positions(positions)
-    if y_scale <= 0.0:
-        raise ValueError("y_scale must be positive")
+    if not np.isfinite(y_scale) or y_scale <= 0.0:
+        raise ValueError("y_scale must be finite and positive")
     rho = np.tanh(values[..., 1] / np.float32(y_scale))
     return np.stack((rho, rho * rho), axis=-1).astype(np.float32)
 

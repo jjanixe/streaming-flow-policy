@@ -88,18 +88,54 @@ class AnalyticField:
         derivatives = torch.stack((dx, dy), dim=-1)
         return centers.to(torch.float32), derivatives.to(torch.float32)
 
-    def _logits(
+    @staticmethod
+    def _saturate(values: torch.Tensor, *, nan: float = 0.0) -> torch.Tensor:
+        limits = torch.finfo(torch.float32)
+        return torch.nan_to_num(
+            values,
+            nan=nan,
+            posinf=limits.max,
+            neginf=limits.min,
+        )
+
+    def _components(
         self,
-        actions: torch.Tensor,
         times: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         centers, derivatives = self.centers_and_derivatives(times)
         sigma = self.sigma(times)
+        return centers, derivatives, sigma
+
+    def _relative_logits(
+        self,
+        actions: torch.Tensor,
+        centers: torch.Tensor,
+        sigma: torch.Tensor,
+    ) -> torch.Tensor:
+        # Every component has the same covariance, so the action-only
+        # quadratic term cancels in the softmax. Centering the logits on one
+        # component avoids squaring very large, but still finite, actions.
+        scaled_actions = self._saturate(actions / sigma[:, None])
+        scaled_centers = centers / sigma[:, None, None]
+        center_offsets = scaled_centers - scaled_centers[:, :1, :]
+        norm_offsets = scaled_centers.square().sum(dim=-1) - (
+            scaled_centers[:, :1, :].square().sum(dim=-1)
+        )
+        logits = (
+            scaled_actions[:, None, :] * center_offsets
+        ).sum(dim=-1) - 0.5 * norm_offsets
+        return self._saturate(logits)
+
+    def _absolute_logits(
+        self,
+        actions: torch.Tensor,
+        centers: torch.Tensor,
+        sigma: torch.Tensor,
+    ) -> torch.Tensor:
         delta = actions[:, None, :] - centers
-        logits = -0.5 * (
+        return -0.5 * (
             delta / sigma[:, None, None]
         ).square().sum(dim=-1)
-        return logits, centers, derivatives
 
     def responsibilities(
         self,
@@ -107,7 +143,8 @@ class AnalyticField:
         times: torch.Tensor,
     ) -> torch.Tensor:
         valid_actions, valid_times = self._validate_inputs(actions, times)
-        logits, _, _ = self._logits(valid_actions, valid_times)
+        centers, _, sigma = self._components(valid_times)
+        logits = self._relative_logits(valid_actions, centers, sigma)
         return torch.softmax(logits, dim=-1)
 
     def log_density(
@@ -116,15 +153,18 @@ class AnalyticField:
         times: torch.Tensor,
     ) -> torch.Tensor:
         valid_actions, valid_times = self._validate_inputs(actions, times)
-        logits, _, _ = self._logits(valid_actions, valid_times)
-        sigma = self.sigma(valid_times)
+        centers, _, sigma = self._components(valid_times)
+        logits = self._absolute_logits(valid_actions, centers, sigma)
         two_pi = torch.tensor(2.0 * math.pi, dtype=torch.float32)
         log_normalizer = torch.log(two_pi * sigma.square())
-        return (
+        log_density = (
             torch.logsumexp(logits, dim=-1)
             - math.log(self.num_components)
             - log_normalizer
         )
+        # A mathematically finite log density can lie below float32's range.
+        # Saturate that scalar representation instead of leaking -Inf.
+        return self._saturate(log_density, nan=torch.finfo(torch.float32).min)
 
     def velocity_pf(
         self,
@@ -132,15 +172,17 @@ class AnalyticField:
         times: torch.Tensor,
     ) -> torch.Tensor:
         valid_actions, valid_times = self._validate_inputs(actions, times)
-        logits, centers, derivatives = self._logits(
-            valid_actions,
-            valid_times,
+        centers, derivatives, sigma = self._components(valid_times)
+        logits = self._relative_logits(
+            valid_actions, centers, sigma
         )
         weights = torch.softmax(logits, dim=-1)
-        conditional = derivatives - self.k * (
-            valid_actions[:, None, :] - centers
+        conditional = self._saturate(
+            derivatives - self.k * (valid_actions[:, None, :] - centers)
         )
-        return (weights[:, :, None] * conditional).sum(dim=1)
+        return self._saturate(
+            (weights[:, :, None] * conditional).sum(dim=1)
+        )
 
     def score(
         self,
@@ -148,18 +190,23 @@ class AnalyticField:
         times: torch.Tensor,
     ) -> torch.Tensor:
         valid_actions, valid_times = self._validate_inputs(actions, times)
-        logits, centers, _ = self._logits(valid_actions, valid_times)
+        centers, _, sigma = self._components(valid_times)
+        logits = self._relative_logits(valid_actions, centers, sigma)
         weights = torch.softmax(logits, dim=-1)
-        sigma_squared = self.sigma(valid_times).square()[:, None, None]
-        conditional = -(valid_actions[:, None, :] - centers) / sigma_squared
-        return (weights[:, :, None] * conditional).sum(dim=1)
+        sigma_squared = sigma.square()[:, None, None]
+        conditional = self._saturate(
+            -(valid_actions[:, None, :] - centers) / sigma_squared
+        )
+        return self._saturate(
+            (weights[:, :, None] * conditional).sum(dim=1)
+        )
 
     def base_sde_drift(
         self,
         actions: torch.Tensor,
         times: torch.Tensor,
     ) -> torch.Tensor:
-        return (
+        return self._saturate(
             self.velocity_pf(actions, times)
             + self.epsilon(times)[:, None] * self.score(actions, times)
         )

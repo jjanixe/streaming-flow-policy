@@ -1,4 +1,7 @@
+from dataclasses import replace
+
 import numpy as np
+import pytest
 
 from env.config import DEFAULT_CONFIG
 from env.demonstrations import evaluate_path, generate_demonstration_bank
@@ -75,3 +78,14 @@ def test_replay_seed_reconstructs_each_sampled_amplitude():
             rtol=0.0,
             atol=0.0,
         )
+
+
+def test_bank_rejects_nonfinite_times_and_wrong_seed_dtype():
+    bank = generate_demonstration_bank(DEFAULT_CONFIG, seed=19)
+    invalid_times = bank.times.copy()
+    invalid_times[1] = np.float32(np.nan)
+
+    with pytest.raises(ValueError, match="finite"):
+        replace(bank, times=invalid_times)
+    with pytest.raises(ValueError, match="uint32"):
+        replace(bank, replay_seeds=bank.replay_seeds.astype(np.int64))
