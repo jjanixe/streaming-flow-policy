@@ -143,11 +143,13 @@ celerybeat.pid
 # Environments
 .env
 .venv
-env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Stage A toy environment outputs
+/env/artifacts/
 
 # Spyder project settings
 .spyderproject
