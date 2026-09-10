@@ -510,25 +510,25 @@ Commit: `git commit -m "feat: expose Stage B2 experiment CLI"`
 - Consumes: complete B2 pipeline, canonical demonstrations, verified B1 record.
 - Produces: fresh test evidence, canonical B2 checkpoint, Gaussian and centered rollouts, comparison metrics, and visualizations.
 
-- [ ] **Step 1: Run focused Stage B2 tests**
+- [x] **Step 1: Run focused Stage B2 tests**
 
 Run: `uv run pytest env/tests/test_stage_b2_config.py env/tests/test_drake_trajectory.py env/tests/test_models.py env/tests/test_sfp_policies.py env/tests/test_stage_b_artifacts.py env/tests/test_train_stage_b.py env/tests/test_evaluate_stage_b.py env/tests/test_run_stage_b.py -q`
 
 Expected: all focused tests pass.
 
-- [ ] **Step 2: Run the complete suite**
+- [x] **Step 2: Run the complete suite**
 
 Run: `uv run pytest -q`
 
 Expected: all Stage A, rendering, B1, and B2 tests pass.
 
-- [ ] **Step 3: Check the resolved uv environment and CLI**
+- [x] **Step 3: Check the resolved uv environment and CLI**
 
 Run: `uv lock --check && uv run python -m env.run_stage_b --help`
 
 Expected: lock is current and CLI lists `b1`, `b2`, and `all`.
 
-- [ ] **Step 4: Run the canonical B2 experiment**
+- [x] **Step 4: Run the canonical B2 experiment**
 
 Run:
 
@@ -536,7 +536,7 @@ Run:
 uv run python -m env.run_stage_b \
   --stage b2 \
   --seed 0 \
-  --device cpu \
+  --device cuda:1 \
   --max-updates 20000 \
   --rollout-count 1024 \
   --integration-steps-per-action 6
@@ -544,14 +544,14 @@ uv run python -m env.run_stage_b \
 
 Do not pass `--enforce-acceptance` on the first scientific run. Preserve unsuccessful trajectories and unchanged thresholds.
 
-- [ ] **Step 5: Verify replay and controlled diversity from the saved checkpoint**
+- [x] **Step 5: Verify replay and controlled diversity from the saved checkpoint**
 
 Repeat evaluation with identical environment/latent seed lists and compare saved float32 arrays byte-for-byte. Then keep the centered environment seed fixed, change only latent seeds, and report unique raw/executed trajectory counts plus occupancy.
 
-- [ ] **Step 6: Record the scientific result**
+- [x] **Step 6: Record the scientific result**
 
 Report selected update, validation and held-out loss, Gaussian and centered success, numerical and action-limit failures, all occupancy values, `other`, unique same-state trajectories, boundary jumps, checkpoint/data digests, and links to plots/GIFs. A gate miss is retained and blocks preference guidance but does not trigger threshold relaxation.
 
-- [ ] **Step 7: Commit any regression-tested verification fixes**
+- [x] **Step 7: Commit any regression-tested verification fixes**
 
 If the canonical run exposes a defect, first add a failing regression test, implement the minimal fix, rerun focused and full suites, and commit only source/tests. Confirm generated artifacts remain untracked/ignored.

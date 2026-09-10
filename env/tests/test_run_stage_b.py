@@ -39,6 +39,7 @@ from env.visualize_stage_b import (
     _occupancy_plot_data,
     _rollout_display_mode,
     plot_mode_occupancy,
+    plot_stage_b_mode_comparison,
     plot_trajectory_comparison,
     write_representative_gifs,
 )
@@ -516,6 +517,48 @@ def test_occupancy_plot_states_conditional_denominator_and_failed_share():
     assert sfpd_values[-1] == pytest.approx(0.2)
     assert "among rollouts reaching state 32" in title
     assert "4/5" in title
+
+
+def test_stage_b_comparison_title_reports_both_midpoint_denominators(
+    tmp_path,
+    monkeypatch,
+):
+    import matplotlib.figure
+
+    captured_titles = []
+    monkeypatch.setattr(
+        matplotlib.figure.Figure,
+        "savefig",
+        lambda figure, *args, **kwargs: captured_titles.append(
+            figure.axes[0].get_title()
+        ),
+    )
+    occupancy = {
+        "upper-narrow": 0.25,
+        "upper-wide": 0.25,
+        "lower-narrow": 0.25,
+        "lower-wide": 0.25,
+        "other": 0.0,
+    }
+
+    plot_stage_b_mode_comparison(
+        tmp_path / "comparison.png",
+        occupancy,
+        {
+            "midpoint_occupancy": occupancy,
+            "midpoint_classified_count": 873,
+            "rollout_count": 1024,
+        },
+        {
+            "midpoint_occupancy": occupancy,
+            "midpoint_classified_count": 993,
+            "rollout_count": 1024,
+        },
+    )
+
+    assert captured_titles == [
+        "B1/B2 midpoint occupancy — B1: 873/1024, B2: 993/1024"
+    ]
 
 
 def test_failed_attempt_after_31_transitions_has_no_midpoint_mode():

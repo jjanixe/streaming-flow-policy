@@ -278,7 +278,7 @@ def plot_stage_b_mode_comparison(
     b2_metrics: Mapping[str, Any],
 ) -> None:
     """Compare B1 and B2 with identical midpoint/failure denominators."""
-    labels, expert_values, b1_values, title = _occupancy_plot_data(
+    labels, expert_values, b1_values, _ = _occupancy_plot_data(
         expert_occupancy,
         b1_metrics["midpoint_occupancy"],
         sfpd_classified_count=int(b1_metrics["midpoint_classified_count"]),
@@ -327,7 +327,13 @@ def plot_stage_b_mode_comparison(
         axis.set_xticks(x, labels, rotation=18, ha="right")
         axis.set_ylabel("conditional occupancy (failure share uses all rollouts)")
         axis.set_ylim(0.0, max(1.0, *expert_values, *b1_values, *b2_values))
-        axis.set_title(f"B1/B2 mode comparison; {title}")
+        axis.set_title(
+            "B1/B2 midpoint occupancy — "
+            f"B1: {int(b1_metrics['midpoint_classified_count'])}/"
+            f"{int(b1_metrics['rollout_count'])}, "
+            f"B2: {int(b2_metrics['midpoint_classified_count'])}/"
+            f"{int(b2_metrics['rollout_count'])}"
+        )
         axis.grid(axis="y", alpha=0.2)
         axis.legend(
             handles=[
