@@ -138,6 +138,47 @@ nine-position chunks, explicit lengths and validity masks, and failure masks.
 The PNGs and GIFs use the same world bounds and actual RGB-array renderer as the
 Gym environment.
 
+### Stage B2: stochastic latent SFPS
+
+After a compatible B1 run exists, run B2 on its own with:
+
+~~~bash
+uv run python -m env.run_stage_b --stage b2 --seed 0 --device cpu
+~~~
+
+By default this validates
+`env/artifacts/stage_b/b1-seed0/diagnostics.json` before training. A different
+B1 diagnostics JSON or `sfpd_best.pt` checkpoint can be supplied with
+`--b1-record`. The precondition checks the demonstration digest, float32/finite
+pipeline result, seed replay, and 16/2/8 chunk contract. A B1 mode-coverage gate
+miss remains a recorded experiment result and does not by itself block B2.
+
+To train both models sequentially from independently derived seeds, run:
+
+~~~bash
+uv run python -m env.run_stage_b --stage all --seed 0 --device cpu
+~~~
+
+This writes B1 and B2 beneath `env/artifacts/stage_b/all-seed0/b1/` and
+`env/artifacts/stage_b/all-seed0/b2/`, plus a top-level
+`stage_b_summary.json`. Reduced `--max-updates`, `--rollout-count`, and
+`--integration-steps-per-action` values are supported for CPU smoke runs.
+
+B2 uses the repository-style equal-sigma formulation with
+`sigma0=sigma1=0.1`, so `sigma_r=0` initially. At every streaming chunk
+boundary it anchors the action state to the current observation, samples a
+fresh explicit two-dimensional latent from the recorded latent RNG stream, and
+generates a nine-position chunk while executing the next eight positions. The
+environment RNG and latent RNG are stored separately, and each chunk latent is
+saved in the pickle-free rollout artifact.
+
+Gaussian-initialized rollouts measure ordinary closed-loop behavior. The
+centered diagnostic fixes the initial environment state and varies only latent
+seeds, directly reporting unique raw and executed trajectories and midpoint
+mode occupancy. This B2 implementation has neither a denoiser nor a
+controllable preference/mode label: the latent can reveal learned multimodality,
+but it does not select a named mode on command.
+
 ## Tests
 
 ~~~bash

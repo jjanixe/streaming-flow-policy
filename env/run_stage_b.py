@@ -88,6 +88,12 @@ def derive_rollout_seeds(root_seed: int, count: int) -> list[int]:
     return result
 
 
+def derive_stage_seeds(root_seed: int) -> tuple[int, int]:
+    """Derive independent uint32 B1 and B2 root seeds."""
+    b1_seed, b2_seed = derive_rollout_seeds(root_seed, 2)
+    return b1_seed, b2_seed
+
+
 def _checkpoint_digest(path: str | Path) -> str:
     digest = hashlib.sha256()
     with Path(path).open("rb") as stream:
@@ -716,6 +722,75 @@ def _resolve_b1_diagnostics(
     return record, path, None
 
 
+def validate_b1_precondition(
+    record_path: str | Path,
+    bank: DemonstrationBank,
+) -> tuple[dict[str, Any], Path | None]:
+    """Validate that B1 is finite and shares B2's data/chunk contract."""
+    path = Path(record_path)
+    if not path.is_file():
+        raise ValueError(f"B1 pipeline record does not exist: {path}")
+    digest = train_data_digest(bank)
+    if path.suffix == ".pt":
+        checkpoint = load_sfpd_checkpoint(
+            path,
+            expected_train_data_digest=digest,
+        )
+        metadata = checkpoint["metadata"]
+        return {
+            "kind": "checkpoint",
+            "path": str(path),
+            "train_data_digest": digest,
+            "model_type": metadata["model_type"],
+            "selected_update": metadata["selected_update"],
+            "validation_loss": metadata["validation_loss"],
+            "distributional_acceptance_required": False,
+        }, None
+    if path.suffix != ".json":
+        raise ValueError("B1 pipeline record must be diagnostics JSON or checkpoint PT")
+
+    record, resolved_path, _ = _resolve_b1_diagnostics(
+        path.parent,
+        digest,
+        path,
+    )
+    if record is None or resolved_path is None:
+        raise ValueError("B1 diagnostics could not be validated")
+    validation_loss = record.get("checkpoint", {}).get("validation_loss")
+    if (
+        not isinstance(validation_loss, (int, float))
+        or isinstance(validation_loss, bool)
+        or not math.isfinite(validation_loss)
+    ):
+        raise ValueError("B1 checkpoint validation loss is not finite")
+    if record.get("deterministic_replay") is not True:
+        raise ValueError("B1 deterministic seed replay did not pass")
+    numerical_failures = record["gaussian"].get("numerical_failure_count")
+    if type(numerical_failures) is not int or numerical_failures != 0:
+        raise ValueError("B1 Gaussian evaluation has numerical failures")
+    resolved_config_path = path.with_name("resolved_config.json")
+    if resolved_config_path.is_file():
+        with resolved_config_path.open(encoding="utf-8") as stream:
+            resolved_config = json.load(stream)
+        b1_config = resolved_config.get("stage_b1", {})
+        horizons = tuple(
+            b1_config.get(name)
+            for name in ("pred_horizon", "obs_horizon", "action_horizon")
+        )
+        if horizons != (16, 2, 8):
+            raise ValueError("B1 resolved config has an incompatible chunk contract")
+    return {
+        "kind": "diagnostics",
+        "path": str(path),
+        "train_data_digest": digest,
+        "model_type": "sfpd",
+        "selected_update": record["checkpoint"].get("selected_update"),
+        "validation_loss": float(validation_loss),
+        "distributional_acceptance_required": False,
+        "distributional_accepted": record.get("accepted"),
+    }, resolved_path
+
+
 def write_stage_b2_outputs(
     destination: str | Path,
     bank: DemonstrationBank,
@@ -1067,9 +1142,9 @@ def run_stage_b2(
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Train and evaluate the deterministic Stage B1 toy policy."
+        description="Train and evaluate deterministic B1 and stochastic B2."
     )
-    parser.add_argument("--stage", choices=("b1",), default="b1")
+    parser.add_argument("--stage", choices=("b1", "b2", "all"), default="b1")
     parser.add_argument(
         "--demonstrations",
         type=Path,
@@ -1082,29 +1157,125 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--rollout-count", type=int, default=1024)
     parser.add_argument("--integration-steps-per-action", type=int, default=6)
     parser.add_argument("--enforce-acceptance", action="store_true")
+    parser.add_argument(
+        "--b1-record",
+        type=Path,
+        default=None,
+        help=(
+            "compatible B1 diagnostics JSON or checkpoint PT; required for "
+            "standalone b2 unless the default b1-seed path exists"
+        ),
+    )
     return parser
+
+
+def _cli_config_overrides(args: argparse.Namespace) -> dict[str, int]:
+    if args.max_updates <= 0:
+        raise ValueError("max_updates must be positive")
+    return {
+        "max_updates": args.max_updates,
+        "validation_interval": min(1_000, args.max_updates),
+        "warmup_updates": min(500, args.max_updates),
+        "rollout_count": args.rollout_count,
+        "integration_steps_per_action": args.integration_steps_per_action,
+    }
+
+
+def _compact_model_summary(result: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: result[key]
+        for key in (
+            "model_type",
+            "train_data_digest",
+            "checkpoint_digest",
+            "checkpoint",
+            "teacher_forced_test_field_loss",
+            "accepted",
+            "failures",
+            "gaussian_metrics",
+            "centered_metrics",
+        )
+        if key in result
+    }
 
 
 def main() -> None:
     args = _build_parser().parse_args()
     bank = load_demonstration_bank(args.demonstrations)
-    config = replace(
-        DEFAULT_STAGE_B1_CONFIG,
-        max_updates=args.max_updates,
-        rollout_count=args.rollout_count,
-        integration_steps_per_action=args.integration_steps_per_action,
-    )
-    output_dir = args.output_dir or Path(
-        f"env/artifacts/stage_b/b1-seed{args.seed}"
-    )
-    result = run_stage_b1(
-        output_dir,
-        bank=bank,
-        config=config,
-        seed=args.seed,
-        device=args.device,
-        enforce_acceptance=args.enforce_acceptance,
-    )
+    overrides = _cli_config_overrides(args)
+    b1_config = replace(DEFAULT_STAGE_B1_CONFIG, **overrides)
+    b2_config = replace(DEFAULT_STAGE_B2_CONFIG, **overrides)
+
+    if args.stage == "b1":
+        output_dir = args.output_dir or Path(
+            f"env/artifacts/stage_b/b1-seed{args.seed}"
+        )
+        result = run_stage_b1(
+            output_dir,
+            bank=bank,
+            config=b1_config,
+            seed=args.seed,
+            device=args.device,
+            enforce_acceptance=args.enforce_acceptance,
+        )
+    elif args.stage == "b2":
+        output_dir = args.output_dir or Path(
+            f"env/artifacts/stage_b/b2-seed{args.seed}"
+        )
+        b1_record = args.b1_record or Path(
+            f"env/artifacts/stage_b/b1-seed{args.seed}/diagnostics.json"
+        )
+        precondition, comparison_path = validate_b1_precondition(b1_record, bank)
+        result = run_stage_b2(
+            output_dir,
+            bank=bank,
+            config=b2_config,
+            seed=args.seed,
+            device=args.device,
+            enforce_acceptance=args.enforce_acceptance,
+            b1_diagnostics_path=comparison_path,
+        )
+        result["b1_precondition"] = precondition
+    else:
+        output_dir = args.output_dir or Path(
+            f"env/artifacts/stage_b/all-seed{args.seed}"
+        )
+        b1_seed, b2_seed = derive_stage_seeds(args.seed)
+        b1_output = output_dir / "b1"
+        b2_output = output_dir / "b2"
+        b1_result = run_stage_b1(
+            b1_output,
+            bank=bank,
+            config=b1_config,
+            seed=b1_seed,
+            device=args.device,
+            enforce_acceptance=args.enforce_acceptance,
+        )
+        b1_record = b1_output / "diagnostics.json"
+        precondition, comparison_path = validate_b1_precondition(b1_record, bank)
+        b2_result = run_stage_b2(
+            b2_output,
+            bank=bank,
+            config=b2_config,
+            seed=b2_seed,
+            device=args.device,
+            enforce_acceptance=args.enforce_acceptance,
+            b1_diagnostics_path=comparison_path,
+        )
+        result = {
+            "format_version": RUN_FORMAT_VERSION,
+            "stage": "all",
+            "root_seed": args.seed,
+            "b1_seed": b1_seed,
+            "b2_seed": b2_seed,
+            "train_data_digest": train_data_digest(bank),
+            "b1_precondition": precondition,
+            "b1": _compact_model_summary(b1_result),
+            "b2": _compact_model_summary(b2_result),
+            "accepted": b1_result["accepted"] and b2_result["accepted"],
+        }
+        save_json(output_dir / "stage_b_summary.json", result)
+
     print(json.dumps(result, indent=2, sort_keys=True, allow_nan=False))
     if args.enforce_acceptance and not result["accepted"]:
         raise SystemExit(1)

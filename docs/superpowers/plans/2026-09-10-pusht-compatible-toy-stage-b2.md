@@ -467,21 +467,21 @@ Commit: `git commit -m "feat: write Stage B2 comparison artifacts"`
 - Consumes: canonical demonstration bank and B1/B2 runners.
 - Produces: `--stage b1|b2|all`, compatible output directory layout, and B2 precondition validation.
 
-- [ ] **Step 1: Write failing CLI tests**
+- [x] **Step 1: Write failing CLI tests**
 
 Run reduced subprocesses for `--stage b2` and `--stage all`. Assert `b2` refuses a missing/incompatible B1 pipeline record before training, `all` produces `b1/` and `b2/` outputs sequentially, and JSON stdout contains both model summaries without NaN.
 
-- [ ] **Step 2: Run CLI tests and verify RED**
+- [x] **Step 2: Run CLI tests and verify RED**
 
 Run: `uv run pytest env/tests/test_run_stage_b.py -q`
 
 Expected: parser rejects `b2` and `all`.
 
-- [ ] **Step 3: Implement CLI stage selection**
+- [x] **Step 3: Implement CLI stage selection**
 
 For `b2`, accept a B1 record/checkpoint path and validate that it is finite and that the shared data digest/chunk contract matches; do not require B1 distributional acceptance. For `all`, run B1 then B2 with independently derived root seeds and write a top-level comparison summary. Keep `--stage b1` backward compatible.
 
-- [ ] **Step 4: Document exact commands**
+- [x] **Step 4: Document exact commands**
 
 Document:
 
@@ -492,7 +492,7 @@ uv run python -m env.run_stage_b --stage all --seed 0 --device cpu
 
 Explain equal-sigma SFPS, fresh chunk latents, same-state diagnostics, artifact locations, and that B2 does not include a denoiser or controllable mode label.
 
-- [ ] **Step 5: Run CLI tests and commit**
+- [x] **Step 5: Run CLI tests and commit**
 
 Run: `uv run pytest env/tests/test_run_stage_b.py -q`
 

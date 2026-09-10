@@ -9,7 +9,7 @@ import pytest
 import torch
 
 import env.run_stage_b as run_stage_b_module
-from env.artifacts import train_data_digest
+from env.artifacts import save_demonstration_bank, train_data_digest
 from env.chunk_data import fit_pusht_stats, normalize_actions
 from env.config import DEFAULT_CONFIG
 from env.demonstrations import generate_demonstration_bank
@@ -613,7 +613,7 @@ def test_representative_gif_rerun_removes_stale_outcome_labels(tmp_path):
     assert not failure_path.exists()
 
 
-def test_stage_b_cli_help_and_stage_validation():
+def test_stage_b_cli_help_exposes_b1_b2_and_all():
     clean_environment = {
         key: value for key, value in os.environ.items() if key != "MPLCONFIGDIR"
     }
@@ -636,18 +636,123 @@ def test_stage_b_cli_help_and_stage_validation():
         "--rollout-count",
         "--integration-steps-per-action",
         "--enforce-acceptance",
+        "--b1-record",
     ):
         assert flag in help_result.stdout
+    assert "{b1,b2,all}" in help_result.stdout
 
-    invalid = subprocess.run(
-        [sys.executable, "-m", "env.run_stage_b", "--stage", "b2"],
+
+def test_stage_b2_cli_refuses_missing_b1_record_before_training(tmp_path):
+    demonstrations = tmp_path / "demonstrations.npz"
+    save_demonstration_bank(demonstrations, _small_bank(seed=601))
+    output = tmp_path / "b2"
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "env.run_stage_b",
+            "--stage",
+            "b2",
+            "--demonstrations",
+            str(demonstrations),
+            "--b1-record",
+            str(tmp_path / "missing-b1.json"),
+            "--output-dir",
+            str(output),
+            "--max-updates",
+            "1",
+            "--rollout-count",
+            "1",
+        ],
         capture_output=True,
         text=True,
         check=False,
-        env=clean_environment,
     )
-    assert invalid.returncode != 0
-    assert "invalid choice" in invalid.stderr
+    assert result.returncode != 0
+    assert "B1" in result.stderr
+    assert not (output / "sfps_best.pt").exists()
+
+
+def test_stage_b2_cli_refuses_incompatible_b1_record_before_training(tmp_path):
+    demonstrations = tmp_path / "demonstrations.npz"
+    save_demonstration_bank(demonstrations, _small_bank(seed=603))
+    b1_record = tmp_path / "incompatible-b1.json"
+    b1_record.write_text(
+        json.dumps(
+            {
+                "model_type": "sfpd",
+                "environment_id": "PointReach2DPreference-v0",
+                "train_data_digest": "different-demonstrations",
+            }
+        ),
+        encoding="utf-8",
+    )
+    output = tmp_path / "b2"
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "env.run_stage_b",
+            "--stage",
+            "b2",
+            "--demonstrations",
+            str(demonstrations),
+            "--b1-record",
+            str(b1_record),
+            "--output-dir",
+            str(output),
+            "--max-updates",
+            "1",
+            "--rollout-count",
+            "1",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "B1" in result.stderr
+    assert not (output / "sfps_best.pt").exists()
+
+
+def test_stage_b_all_cli_runs_sequential_models_and_emits_valid_json(tmp_path):
+    demonstrations = tmp_path / "demonstrations.npz"
+    save_demonstration_bank(demonstrations, _small_bank(seed=602))
+    output = tmp_path / "all"
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "env.run_stage_b",
+            "--stage",
+            "all",
+            "--demonstrations",
+            str(demonstrations),
+            "--output-dir",
+            str(output),
+            "--max-updates",
+            "1",
+            "--rollout-count",
+            "2",
+            "--integration-steps-per-action",
+            "1",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    summary = json.loads(
+        result.stdout,
+        parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)),
+    )
+    assert summary["stage"] == "all"
+    assert summary["b1"]["model_type"] == "sfpd"
+    assert summary["b2"]["model_type"] == "sfps"
+    assert summary["b1_seed"] != summary["b2_seed"]
+    assert (output / "b1" / "diagnostics.json").is_file()
+    assert (output / "b2" / "sfps_diagnostics.json").is_file()
+    assert (output / "stage_b_summary.json").is_file()
 
 
 def test_cli_requires_saved_demonstrations_instead_of_regenerating(tmp_path):
