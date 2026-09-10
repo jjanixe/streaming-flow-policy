@@ -10,7 +10,11 @@ import numpy as np
 
 from env.config import EnvironmentConfig
 from env.environment import PointReach2DPreferenceEnv
-from env.evaluate_stage_b import SFPDRollout, SFPDRolloutBatch
+from env.evaluate_stage_b import (
+    SFPDRollout,
+    SFPDRolloutBatch,
+    SFPSRolloutBatch,
+)
 
 
 MODE_NAMES = (
@@ -96,13 +100,17 @@ def _configure_world_axes(ax: Any, config: EnvironmentConfig, circle: Any) -> No
 def plot_trajectory_comparison(
     path: str | Path,
     expert_positions: np.ndarray,
-    rollout_batch: SFPDRolloutBatch,
+    rollout_batch: SFPDRolloutBatch | SFPSRolloutBatch,
     environment_config: EnvironmentConfig,
+    *,
+    model_label: str = "SFPD",
 ) -> None:
     """Overlay held-out expert and SFPD paths using fixed mode colors."""
     experts = _require_expert_positions(expert_positions)
-    if not isinstance(rollout_batch, SFPDRolloutBatch):
-        raise ValueError("rollout_batch must be an SFPDRolloutBatch")
+    if not isinstance(rollout_batch, (SFPDRolloutBatch, SFPSRolloutBatch)):
+        raise ValueError("rollout_batch must be a streaming rollout batch")
+    if not isinstance(model_label, str) or not model_label.strip():
+        raise ValueError("model_label must be a nonempty string")
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     plt, circle, patch = _plot_modules()
@@ -139,7 +147,7 @@ def plot_trajectory_comparison(
                     linewidth=1.5,
                     zorder=6,
                 )
-        axes[1].set_title("SFPD Gaussian-initialized rollouts")
+        axes[1].set_title(f"{model_label} Gaussian-initialized rollouts")
 
         for axis in axes:
             _configure_world_axes(axis, environment_config, circle)
@@ -213,6 +221,7 @@ def plot_mode_occupancy(
     *,
     sfpd_classified_count: int,
     sfpd_rollout_count: int,
+    model_label: str = "SFPD",
 ) -> None:
     """Plot conditional midpoint occupancy and pre-midpoint failure share."""
     labels, expert_values, sfpd_values, title = _occupancy_plot_data(
@@ -253,7 +262,78 @@ def plot_mode_occupancy(
         axis.legend(
             handles=[
                 patch(facecolor="#777777", alpha=0.38, hatch="//", label="expert"),
-                patch(facecolor="#777777", alpha=0.95, label="SFPD"),
+                patch(facecolor="#777777", alpha=0.95, label=model_label),
+            ],
+            frameon=False,
+        )
+        figure.savefig(destination, dpi=150)
+    finally:
+        plt.close(figure)
+
+
+def plot_stage_b_mode_comparison(
+    path: str | Path,
+    expert_occupancy: Mapping[str, float],
+    b1_metrics: Mapping[str, Any],
+    b2_metrics: Mapping[str, Any],
+) -> None:
+    """Compare B1 and B2 with identical midpoint/failure denominators."""
+    labels, expert_values, b1_values, title = _occupancy_plot_data(
+        expert_occupancy,
+        b1_metrics["midpoint_occupancy"],
+        sfpd_classified_count=int(b1_metrics["midpoint_classified_count"]),
+        sfpd_rollout_count=int(b1_metrics["rollout_count"]),
+    )
+    b2_labels, _, b2_values, _ = _occupancy_plot_data(
+        expert_occupancy,
+        b2_metrics["midpoint_occupancy"],
+        sfpd_classified_count=int(b2_metrics["midpoint_classified_count"]),
+        sfpd_rollout_count=int(b2_metrics["rollout_count"]),
+    )
+    if labels != b2_labels:
+        raise ValueError("B1 and B2 comparison labels must match")
+
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    x = np.arange(len(labels), dtype=np.float32)
+    width = 0.25
+    plt, _, patch = _plot_modules()
+    figure, axis = plt.subplots(figsize=(10.5, 4.8), constrained_layout=True)
+    try:
+        for index, mode in enumerate(labels):
+            color = MODE_COLORS[mode]
+            axis.bar(
+                x[index] - width,
+                expert_values[index],
+                width,
+                color=color,
+                alpha=0.28,
+                hatch="//",
+            )
+            axis.bar(
+                x[index],
+                b1_values[index],
+                width,
+                color=color,
+                alpha=0.65,
+            )
+            axis.bar(
+                x[index] + width,
+                b2_values[index],
+                width,
+                color=color,
+                alpha=1.0,
+            )
+        axis.set_xticks(x, labels, rotation=18, ha="right")
+        axis.set_ylabel("conditional occupancy (failure share uses all rollouts)")
+        axis.set_ylim(0.0, max(1.0, *expert_values, *b1_values, *b2_values))
+        axis.set_title(f"B1/B2 mode comparison; {title}")
+        axis.grid(axis="y", alpha=0.2)
+        axis.legend(
+            handles=[
+                patch(facecolor="#777777", alpha=0.28, hatch="//", label="expert"),
+                patch(facecolor="#777777", alpha=0.65, label="SFPD (B1)"),
+                patch(facecolor="#777777", alpha=1.0, label="SFPS (B2)"),
             ],
             frameon=False,
         )
@@ -298,14 +378,14 @@ def _render_rollout_frames(
 
 def write_representative_gifs(
     output_dir: str | Path,
-    rollout_batch: SFPDRolloutBatch,
+    rollout_batch: SFPDRolloutBatch | SFPSRolloutBatch,
     environment_config: EnvironmentConfig,
     *,
     center_init: bool,
 ) -> dict[str, Path]:
     """Write one success and one failure replay GIF when each is available."""
-    if not isinstance(rollout_batch, SFPDRolloutBatch):
-        raise ValueError("rollout_batch must be an SFPDRolloutBatch")
+    if not isinstance(rollout_batch, (SFPDRolloutBatch, SFPSRolloutBatch)):
+        raise ValueError("rollout_batch must be a streaming rollout batch")
     destination = Path(output_dir)
     destination.mkdir(parents=True, exist_ok=True)
     for label in ("success", "failure"):

@@ -13,10 +13,27 @@ from env.artifacts import train_data_digest
 from env.chunk_data import fit_pusht_stats, normalize_actions
 from env.config import DEFAULT_CONFIG
 from env.demonstrations import generate_demonstration_bank
-from env.evaluate_stage_b import SFPDRollout, SFPDRolloutBatch, rollout_sfpd
-from env.run_stage_b import derive_rollout_seeds, load_trained_sfpd, run_stage_b1
-from env.stage_b_artifacts import load_sfpd_checkpoint, save_sfpd_rollouts
-from env.stage_b_config import DEFAULT_STAGE_B1_CONFIG
+from env.evaluate_stage_b import (
+    SFPDRollout,
+    SFPDRolloutBatch,
+    SFPSRolloutBatch,
+    rollout_sfpd,
+    rollout_sfps,
+)
+from env.run_stage_b import (
+    derive_rollout_seeds,
+    load_trained_sfpd,
+    load_trained_sfps,
+    run_stage_b1,
+    run_stage_b2,
+)
+from env.stage_b_artifacts import (
+    load_sfpd_checkpoint,
+    load_sfps_checkpoint,
+    save_sfpd_rollouts,
+    save_sfps_rollouts,
+)
+from env.stage_b_config import DEFAULT_STAGE_B1_CONFIG, DEFAULT_STAGE_B2_CONFIG
 from env.visualize_stage_b import (
     MODE_COLORS,
     _occupancy_plot_data,
@@ -57,6 +74,29 @@ class _SingleChunkPolicy:
 
     def predict(self, nobs, num_actions, integration_steps_per_action):
         return torch.from_numpy(self.normalized_chunk[None])
+
+
+class _ScriptedStochasticPolicy:
+    device = torch.device("cpu")
+
+    def __init__(self, normalized_positions: np.ndarray) -> None:
+        self.normalized_positions = normalized_positions
+        self.calls = 0
+
+    def sample_latent(self, generator):
+        return torch.randn((2,), dtype=torch.float32, generator=generator)
+
+    def predict(
+        self,
+        nobs,
+        num_actions,
+        integration_steps_per_action,
+        *,
+        latent,
+    ):
+        start = self.calls * 8
+        self.calls += 1
+        return torch.from_numpy(self.normalized_positions[start : start + 9][None])
 
 
 def test_reduced_stage_b1_run_writes_complete_safe_artifacts(tmp_path):
@@ -209,6 +249,128 @@ def test_rollout_npz_padding_is_explicit_and_pickle_free(tmp_path):
             successful.raw_predicted_chunks,
         )
         assert not any(payload[name].dtype.hasobject for name in payload.files)
+
+
+def test_sfps_rollout_npz_preserves_separate_seed_and_latent_provenance(tmp_path):
+    bank = _small_bank(seed=401)
+    stats = fit_pusht_stats(bank)
+    expert = bank.select("test").positions[0]
+    rollout = rollout_sfps(
+        _ScriptedStochasticPolicy(normalize_actions(expert, stats)),
+        stats,
+        DEFAULT_CONFIG.environment,
+        environment_seed=402,
+        latent_seed=403,
+        center_init=True,
+        integration_steps_per_action=1,
+    )
+    path = tmp_path / "sfps_rollouts.npz"
+
+    save_sfps_rollouts(
+        path,
+        SFPSRolloutBatch.from_rollouts((rollout,)),
+        checkpoint_digest="checkpoint-sha256",
+        train_data_digest="train-sha256",
+    )
+
+    with np.load(path, allow_pickle=False) as payload:
+        assert str(payload["model_type"].item()) == "sfps"
+        assert payload["environment_seeds"].tolist() == [402]
+        assert payload["latent_seeds"].tolist() == [403]
+        assert payload["chunk_latents"].shape == (1, 8, 2)
+        assert payload["chunk_latents"].dtype == np.float32
+        assert payload["chunk_latent_mask"].dtype == np.bool_
+        assert payload["chunk_latent_lengths"].tolist() == [8]
+        assert not any(payload[name].dtype.hasobject for name in payload.files)
+
+
+def test_reduced_stage_b2_run_writes_controlled_diversity_artifacts(tmp_path):
+    bank = _small_bank(seed=404)
+    config = replace(
+        DEFAULT_STAGE_B2_CONFIG,
+        hidden_dim=16,
+        hidden_layers=1,
+        batch_size=64,
+        max_updates=2,
+        validation_interval=1,
+        warmup_updates=1,
+        rollout_count=4,
+        integration_steps_per_action=1,
+    )
+    b1_diagnostics = tmp_path / "compatible_b1_diagnostics.json"
+    b1_diagnostics.write_text(
+        json.dumps(
+            {
+                "model_type": "sfpd",
+                "environment_id": "PointReach2DPreference-v0",
+                "train_data_digest": train_data_digest(bank),
+                "teacher_forced_test_field_loss": 0.5,
+                "checkpoint": {"architecture": {"pred_horizon": 16}},
+                "gaussian": {
+                    "rollout_count": 4,
+                    "midpoint_classified_count": 4,
+                    "midpoint_occupancy": {
+                        "upper-narrow": 0.25,
+                        "upper-wide": 0.25,
+                        "lower-narrow": 0.25,
+                        "lower-wide": 0.25,
+                        "other": 0.0,
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_stage_b2(
+        tmp_path,
+        bank=bank,
+        config=config,
+        seed=405,
+        b1_diagnostics_path=b1_diagnostics,
+    )
+
+    assert result["model_type"] == "sfps"
+    assert result["seeded_replay"] is True
+    assert result["centered_metrics"]["same_state_diversity_applicable"] is True
+    assert result["centered_metrics"]["same_state_unique_raw_trajectory_count"] > 1
+    assert result["b1_comparison"]["available"] is True
+    for name in (
+        "resolved_config.json",
+        "sfps_seed_streams.json",
+        "pusht_stats.npz",
+        "sfps_best.pt",
+        "sfps_training_history.json",
+        "sfps_diagnostics.json",
+        "sfps_rollouts.npz",
+        "sfps_centered_rollouts.npz",
+        "sfps_trajectory_comparison.png",
+        "sfps_mode_occupancy.png",
+        "stage_b1_b2_comparison.json",
+        "stage_b1_b2_mode_comparison.png",
+    ):
+        assert (tmp_path / name).is_file(), name
+
+    checkpoint = load_sfps_checkpoint(
+        tmp_path / "sfps_best.pt",
+        expected_train_data_digest=train_data_digest(bank),
+    )
+    policy, _, metadata = load_trained_sfps(
+        tmp_path / "sfps_best.pt",
+        tmp_path / "pusht_stats.npz",
+        expected_train_data_digest=train_data_digest(bank),
+        device="cpu",
+    )
+    assert metadata == checkpoint["metadata"]
+    for name, value in policy.state_dict().items():
+        torch.testing.assert_close(value, checkpoint["ema_state"][name])
+
+    with (tmp_path / "sfps_diagnostics.json").open(encoding="utf-8") as stream:
+        diagnostics = json.load(
+            stream,
+            parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)),
+        )
+    assert diagnostics["dtypes"]["learned_model_and_ode"] == "float32"
 
 
 def test_rollout_seed_derivation_is_stable_and_validated(monkeypatch):

@@ -10,6 +10,7 @@ from env.artifacts import train_data_digest
 from env.chunk_data import fit_pusht_stats
 from env.config import DEFAULT_CONFIG
 from env.demonstrations import generate_demonstration_bank
+from env.evaluate_stage_b import SFPSRollout, SFPSRolloutBatch
 from env.models import SFPDVelocityMLP, SFPSVelocityMLP
 from env.sfp_policies import (
     StreamingFlowPolicyDeterministic,
@@ -23,6 +24,7 @@ from env.stage_b_artifacts import (
     save_pusht_stats,
     save_sfpd_checkpoint,
     save_sfps_checkpoint,
+    save_sfps_rollouts,
 )
 from env.stage_b_config import (
     DEFAULT_STAGE_B1_CONFIG,
@@ -163,6 +165,52 @@ def _sfps_policy_state(hidden_dim=16, hidden_layers=1, sigma0=0.1, sigma1=0.1):
         sigma0=sigma0,
         sigma1=sigma1,
     ).state_dict()
+
+
+def _minimal_sfps_rollout():
+    position = np.zeros(2, dtype=np.float32)
+    return SFPSRollout(
+        seed=41,
+        initial_observation=np.zeros(3, dtype=np.float32),
+        executed_positions=np.stack((position, position)),
+        requested_actions=position[None],
+        raw_predicted_chunks=np.zeros((1, 9, 2), dtype=np.float32),
+        executed_action_count=1,
+        success=False,
+        numerical_failure=False,
+        action_limit_failure=False,
+        info={
+            "action_attempt_count": 1,
+            "step_index": 1,
+            "action_limit_activation_count": 0,
+            "success": False,
+            "numerical_failure": False,
+            "action_limit_failure": False,
+            "gym_numerical_failure": False,
+            "policy_generation_numerical_failure": False,
+            "policy_generation_nonfinite_chunk_indices": [],
+            "policy_generation_exception_chunk_indices": [],
+        },
+        latent_seed=42,
+        chunk_latents=np.ones((1, 2), dtype=np.float32),
+    )
+
+
+def test_sfps_rollout_save_rejects_missing_chunk_latent_provenance(tmp_path):
+    rollout = _minimal_sfps_rollout()
+    object.__setattr__(
+        rollout,
+        "chunk_latents",
+        np.empty((0, 2), dtype=np.float32),
+    )
+
+    with pytest.raises(ValueError, match="exactly one latent"):
+        save_sfps_rollouts(
+            tmp_path / "invalid.npz",
+            SFPSRolloutBatch((rollout,)),
+            checkpoint_digest="checkpoint",
+            train_data_digest="train",
+        )
 
 
 def test_sfps_checkpoint_round_trip_keeps_joint_architecture_and_rng(tmp_path):

@@ -408,21 +408,21 @@ Commit: `git commit -m "feat: evaluate controlled SFPS diversity"`
 - Consumes: B2 training result, Gaussian and centered rollout batches, B1 diagnostics when available.
 - Produces: `save_sfps_rollouts`, `load_trained_sfps`, `write_stage_b2_outputs`, comparison plots, representative GIFs, and valid JSON diagnostics.
 
-- [ ] **Step 1: Write failing portable rollout tests**
+- [x] **Step 1: Write failing portable rollout tests**
 
 Verify `sfps_rollouts.npz` contains numeric/pickle-free environment seeds, latent seeds, per-chunk latents, masks, requested/executed positions, raw chunks, failure masks, checkpoint digest, and train digest. Mutate missing latent rows and ensure saving rejects inconsistent provenance.
 
-- [ ] **Step 2: Run artifact tests and verify RED**
+- [x] **Step 2: Run artifact tests and verify RED**
 
 Run: `uv run pytest env/tests/test_stage_b_artifacts.py -q`
 
 Expected: missing `save_sfps_rollouts`.
 
-- [ ] **Step 3: Implement model-typed rollout serialization**
+- [x] **Step 3: Implement model-typed rollout serialization**
 
 Preserve the existing B1 NPZ schema and add SFPS-only arrays under a model-typed helper. Padding masks must be explicit and all non-string arrays must remain primitive numeric/bool dtypes.
 
-- [ ] **Step 4: Write failing reduced end-to-end B2 test**
+- [x] **Step 4: Write failing reduced end-to-end B2 test**
 
 ```python
 def test_reduced_stage_b2_run_writes_controlled_diversity_artifacts(tmp_path):
@@ -438,17 +438,17 @@ def test_reduced_stage_b2_run_writes_controlled_diversity_artifacts(tmp_path):
         assert (tmp_path / name).is_file(), name
 ```
 
-- [ ] **Step 5: Run workflow test and verify RED**
+- [x] **Step 5: Run workflow test and verify RED**
 
 Run: `uv run pytest env/tests/test_run_stage_b.py -q`
 
 Expected: import failure for `run_stage_b2`.
 
-- [ ] **Step 6: Implement SFPS load/output workflow**
+- [x] **Step 6: Implement SFPS load/output workflow**
 
 Reconstruct the EMA model after strict digest/config/schema checks. Write Gaussian and centered NPZ files, diagnostics JSON, resolved config, seed streams, mode plots, trajectory plots, and representative GIFs. If a sibling B1 diagnostics file exists, additionally write a comparison JSON/plot using the exact same classifier denominators; absence of B1 diagnostics must be explicit rather than silently treated as zeros.
 
-- [ ] **Step 7: Run Task 6 tests and commit**
+- [x] **Step 7: Run Task 6 tests and commit**
 
 Run: `uv run pytest env/tests/test_stage_b_artifacts.py env/tests/test_run_stage_b.py -q`
 
