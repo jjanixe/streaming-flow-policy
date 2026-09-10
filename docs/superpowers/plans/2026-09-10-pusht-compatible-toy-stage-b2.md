@@ -38,7 +38,7 @@
 - Consumes: `evaluate_drake_foh(action: np.ndarray, tau: np.float32)` and Stage B1 training defaults.
 - Produces: `StageB2Config`, `DEFAULT_STAGE_B2_CONFIG`, `stage_b2_config_to_dict`, and `SFPSDrakeTransform(sigma0, sigma1, rng)`.
 
-- [ ] **Step 1: Write failing configuration tests**
+- [x] **Step 1: Write failing configuration tests**
 
 ```python
 def test_stage_b2_defaults_match_repository_equal_sigma_contract():
@@ -62,13 +62,13 @@ def test_stage_b2_rejects_incompatible_parameters(overrides, match):
         replace(DEFAULT_STAGE_B2_CONFIG, **overrides)
 ```
 
-- [ ] **Step 2: Run the configuration tests and verify RED**
+- [x] **Step 2: Run the configuration tests and verify RED**
 
 Run: `uv run pytest env/tests/test_stage_b2_config.py -q`
 
 Expected: collection fails because `StageB2Config` and `DEFAULT_STAGE_B2_CONFIG` do not exist.
 
-- [ ] **Step 3: Implement immutable B2 configuration**
+- [x] **Step 3: Implement immutable B2 configuration**
 
 ```python
 @dataclass(frozen=True)
@@ -126,7 +126,7 @@ class StageB2Config:
             raise ValueError("ema_decay must be in [0, 1)")
 ```
 
-- [ ] **Step 4: Write failing hand-derived SFPS target tests**
+- [x] **Step 4: Write failing hand-derived SFPS target tests**
 
 ```python
 def test_sfps_drake_transform_matches_equal_sigma_formula():
@@ -149,13 +149,13 @@ def test_sfps_drake_transform_matches_equal_sigma_formula():
     assert all(actual[name].dtype == np.float32 for name in ("a", "z", "va", "vz", "t"))
 ```
 
-- [ ] **Step 5: Run the transform test and verify RED**
+- [x] **Step 5: Run the transform test and verify RED**
 
 Run: `uv run pytest env/tests/test_drake_trajectory.py -q`
 
 Expected: import or attribute failure for `SFPSDrakeTransform`.
 
-- [ ] **Step 6: Implement the seeded SFPS transform**
+- [x] **Step 6: Implement the seeded SFPS transform**
 
 Compute exactly:
 
@@ -169,7 +169,7 @@ vz = xi + tau * xi_dot - (1.0 - sigma1) * z0
 
 Return unchanged diagnostic metadata, drop the original `action`, and emit only finite float32 arrays.
 
-- [ ] **Step 7: Run Task 1 tests and commit**
+- [x] **Step 7: Run Task 1 tests and commit**
 
 Run: `uv run pytest env/tests/test_stage_b2_config.py env/tests/test_drake_trajectory.py -q`
 
