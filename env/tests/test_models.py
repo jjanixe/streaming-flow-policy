@@ -1,12 +1,20 @@
 import pytest
 import torch
 
-from env.models import LocalTimeFeatures, SFPDVelocityMLP
+from env.models import LocalTimeFeatures, SFPDVelocityMLP, SFPSVelocityMLP
 
 
 def valid_inputs(batch_size: int = 5):
     return (
         torch.zeros((batch_size, 1, 2), dtype=torch.float32),
+        torch.linspace(0.0, 1.0, batch_size, dtype=torch.float32),
+        torch.zeros((batch_size, 6), dtype=torch.float32),
+    )
+
+
+def valid_sfps_inputs(batch_size: int = 5):
+    return (
+        torch.zeros((batch_size, 2, 2), dtype=torch.float32),
         torch.linspace(0.0, 1.0, batch_size, dtype=torch.float32),
         torch.zeros((batch_size, 6), dtype=torch.float32),
     )
@@ -19,6 +27,46 @@ def test_sfpd_velocity_mlp_preserves_sample_shape_and_float32():
     assert output.shape == sample.shape
     assert output.dtype == torch.float32
     assert torch.isfinite(output).all()
+
+
+def test_sfps_velocity_mlp_preserves_joint_sample_shape_and_float32():
+    model = SFPSVelocityMLP(hidden_dim=16, hidden_layers=1)
+    sample, time, condition = valid_sfps_inputs()
+
+    output = model(sample=sample, timestep=time, global_cond=condition)
+
+    assert output.shape == sample.shape == (5, 2, 2)
+    assert output.dtype == torch.float32
+    assert torch.isfinite(output).all()
+
+
+@pytest.mark.parametrize(
+    "which,bad",
+    [
+        ("sample", torch.zeros((2, 4), dtype=torch.float32)),
+        ("sample", torch.zeros((2, 1, 2), dtype=torch.float32)),
+        ("timestep", torch.zeros((2, 1), dtype=torch.float32)),
+        ("global_cond", torch.zeros((2, 5), dtype=torch.float32)),
+    ],
+)
+def test_sfps_velocity_mlp_rejects_invalid_shapes(which, bad):
+    model = SFPSVelocityMLP(hidden_dim=16, hidden_layers=1)
+    sample, time, condition = valid_sfps_inputs(2)
+    values = {"sample": sample, "timestep": time, "global_cond": condition}
+    values[which] = bad
+
+    with pytest.raises(ValueError, match="shape"):
+        model(**values)
+
+
+def test_sfps_velocity_mlp_rejects_float64_and_nonfinite_inputs():
+    model = SFPSVelocityMLP(hidden_dim=16, hidden_layers=1)
+    sample, time, condition = valid_sfps_inputs(1)
+    with pytest.raises(ValueError, match="float32"):
+        model(sample.double(), time, condition)
+    sample[0, 1, 0] = float("nan")
+    with pytest.raises(ValueError, match="finite"):
+        model(sample, time, condition)
 
 
 def test_local_time_features_has_expected_nine_features():

@@ -4,11 +4,12 @@ import sys
 import pytest
 import torch
 
-from env.models import SFPDVelocityMLP
+from env.models import SFPDVelocityMLP, SFPSVelocityMLP
 import env.sfp_policies as sfp_policies
 from env.sfp_policies import (
     PolicyNumericalError,
     StreamingFlowPolicyDeterministic,
+    StreamingFlowPolicyStochastic,
     _ConditionedVectorField,
 )
 
@@ -39,10 +40,104 @@ def test_sfpd_loss_rejects_non_float32_source_batch_tensors():
         policy.loss(batch)
 
 
+def test_sfps_loss_is_scalar_finite_float32():
+    policy = StreamingFlowPolicyStochastic(
+        SFPSVelocityMLP(hidden_dim=16, hidden_layers=1)
+    )
+    batch = {
+        "obs": torch.zeros((4, 2, 3), dtype=torch.float32),
+        "a": torch.zeros((4, 1, 2), dtype=torch.float32),
+        "z": torch.zeros((4, 1, 2), dtype=torch.float32),
+        "va": torch.ones((4, 1, 2), dtype=torch.float32),
+        "vz": torch.ones((4, 1, 2), dtype=torch.float32),
+        "t": torch.linspace(0.0, 1.0, 4, dtype=torch.float32),
+    }
+
+    loss = policy.loss(batch)
+
+    assert loss.shape == ()
+    assert loss.dtype == torch.float32
+    assert torch.isfinite(loss)
+
+
+def test_sfps_loss_rejects_invalid_joint_batch():
+    policy = StreamingFlowPolicyStochastic(
+        SFPSVelocityMLP(hidden_dim=16, hidden_layers=1)
+    )
+    batch = {
+        "obs": torch.zeros((1, 2, 3), dtype=torch.float32),
+        "a": torch.zeros((1, 1, 2), dtype=torch.float32),
+        "z": torch.zeros((1, 1, 2), dtype=torch.float64),
+        "va": torch.ones((1, 1, 2), dtype=torch.float32),
+        "vz": torch.ones((1, 1, 2), dtype=torch.float32),
+        "t": torch.zeros((1,), dtype=torch.float32),
+    }
+
+    with pytest.raises(ValueError, match="float32"):
+        policy.loss(batch)
+
+
 class ConstantVelocity(torch.nn.Module):
     def forward(self, sample, timestep, global_cond):
         velocity = torch.tensor([0.3, -0.15], dtype=torch.float32, device=sample.device)
         return velocity.expand_as(sample)
+
+
+class LatentSensitiveJointVelocity(torch.nn.Module):
+    def forward(self, sample, timestep, global_cond):
+        velocity = torch.zeros_like(sample)
+        velocity[:, 0, :] = sample[:, 1, :]
+        return velocity
+
+
+def test_sfps_prediction_replays_with_explicit_latent_generator():
+    policy = StreamingFlowPolicyStochastic(LatentSensitiveJointVelocity())
+    nobs = torch.tensor(
+        [[-0.5, 0.25, -1.0], [-0.4, 0.2, -0.75]],
+        dtype=torch.float32,
+    )
+    global_state = torch.random.get_rng_state().clone()
+
+    first = policy.predict(
+        nobs,
+        num_actions=9,
+        integration_steps_per_action=2,
+        generator=torch.Generator().manual_seed(7),
+    )
+    second = policy.predict(
+        nobs,
+        num_actions=9,
+        integration_steps_per_action=2,
+        generator=torch.Generator().manual_seed(7),
+    )
+    third = policy.predict(
+        nobs,
+        num_actions=9,
+        integration_steps_per_action=2,
+        generator=torch.Generator().manual_seed(8),
+    )
+
+    assert first.shape == (1, 9, 2)
+    assert first.dtype == torch.float32
+    torch.testing.assert_close(first[0, 0], nobs[-1, :2], rtol=0, atol=0)
+    torch.testing.assert_close(first, second, rtol=0, atol=0)
+    assert not torch.equal(first, third)
+    assert torch.equal(global_state, torch.random.get_rng_state())
+
+
+def test_sfps_prediction_can_use_an_explicit_latent_without_sampling():
+    policy = StreamingFlowPolicyStochastic(LatentSensitiveJointVelocity())
+    nobs = torch.zeros((2, 3), dtype=torch.float32)
+    latent = torch.tensor([0.3, -0.15], dtype=torch.float32)
+
+    actions = policy.predict(
+        nobs,
+        num_actions=9,
+        integration_steps_per_action=2,
+        latent=latent,
+    )
+
+    torch.testing.assert_close(actions[0, -1], latent * (8.0 / 15.0), atol=1e-4, rtol=1e-4)
 
 
 def test_prediction_starts_at_anchor_and_samples_eight_future_actions():

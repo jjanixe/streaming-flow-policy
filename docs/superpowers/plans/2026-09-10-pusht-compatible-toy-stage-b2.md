@@ -189,7 +189,7 @@ Commit: `git commit -m "feat: add seeded SFPS Drake targets"`
 - Consumes: normalized observations `[B,2,3]`, joint sample `[B,2,2]`, time `[B]`, explicit `torch.Generator` or latent tensor.
 - Produces: `SFPSVelocityMLP.forward(sample, timestep, global_cond) -> Tensor[B,2,2]` and `StreamingFlowPolicyStochastic.loss/predict`.
 
-- [ ] **Step 1: Write failing model shape and validation tests**
+- [x] **Step 1: Write failing model shape and validation tests**
 
 ```python
 def test_sfps_velocity_model_returns_joint_float32_velocity():
@@ -205,17 +205,17 @@ def test_sfps_velocity_model_returns_joint_float32_velocity():
 
 Add cases rejecting float64, non-finite values, a final joint shape other than `[2,2]`, and time outside `[0,1]`.
 
-- [ ] **Step 2: Run model tests and verify RED**
+- [x] **Step 2: Run model tests and verify RED**
 
 Run: `uv run pytest env/tests/test_models.py -q`
 
 Expected: import failure for `SFPSVelocityMLP`.
 
-- [ ] **Step 3: Implement `SFPSVelocityMLP`**
+- [x] **Step 3: Implement `SFPSVelocityMLP`**
 
 Use input width `4 + 9 + 6`, the configured hidden stack, and output width 4 reshaped to `[B,2,2]`. Reuse `LocalTimeFeatures`; keep the B1 model unchanged.
 
-- [ ] **Step 4: Write failing SFPS loss and seeded prediction tests**
+- [x] **Step 4: Write failing SFPS loss and seeded prediction tests**
 
 ```python
 def test_sfps_loss_is_finite_float32_scalar():
@@ -242,17 +242,17 @@ def test_sfps_prediction_replays_with_explicit_latent_generator():
     assert not torch.equal(first, third)
 ```
 
-- [ ] **Step 5: Run policy tests and verify RED**
+- [x] **Step 5: Run policy tests and verify RED**
 
 Run: `uv run pytest env/tests/test_sfp_policies.py -q`
 
 Expected: import failure for `StreamingFlowPolicyStochastic`.
 
-- [ ] **Step 6: Implement joint loss and ODE prediction**
+- [x] **Step 6: Implement joint loss and ODE prediction**
 
 Concatenate `a,z` and `va,vz` along the waypoint axis for loss. For prediction, anchor `a0=nobs[-1,:2]`, sample `z0=torch.randn((2,), generator=generator, dtype=float32, device=device)`, integrate joint state `[2,2]`, return only action states with shape `[1,num_actions,2]`, and optionally return the sampled latent for diagnostics through a separate `sample_latent` helper. Match B1's Dopri5, adjoint, tolerances, validation, and numerical-error translation.
 
-- [ ] **Step 7: Run Task 2 tests and commit**
+- [x] **Step 7: Run Task 2 tests and commit**
 
 Run: `uv run pytest env/tests/test_models.py env/tests/test_sfp_policies.py -q`
 
