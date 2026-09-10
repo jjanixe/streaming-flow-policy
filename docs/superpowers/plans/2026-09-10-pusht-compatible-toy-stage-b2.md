@@ -313,7 +313,7 @@ Commit: `git commit -m "feat: serialize validated SFPS checkpoints"`
 - Consumes: `DemonstrationBank`, `StageB2Config`, train-only PushT stats, `SFPSDrakeTransform`, SFPS policy/checkpoint APIs.
 - Produces: `train_sfps(bank, output_dir, *, config, root_seed, device) -> TrainResult` with `sfps_best.pt` and `sfps_training_history.json`.
 
-- [ ] **Step 1: Write failing short-training test**
+- [x] **Step 1: Write failing short-training test**
 
 ```python
 def test_short_sfps_training_is_finite_reproducible_and_separate_from_b1(tmp_path):
@@ -331,17 +331,17 @@ def test_short_sfps_training_is_finite_reproducible_and_separate_from_b1(tmp_pat
 
 Also assert caller Torch RNG restoration and that every saved floating tensor is finite float32.
 
-- [ ] **Step 2: Run training tests and verify RED**
+- [x] **Step 2: Run training tests and verify RED**
 
 Run: `uv run pytest env/tests/test_train_stage_b.py -q`
 
 Expected: import failure for `train_sfps`.
 
-- [ ] **Step 3: Implement `train_sfps` using shared training primitives**
+- [x] **Step 3: Implement `train_sfps` using shared training primitives**
 
 Extract only genuinely shared B1/B2 helpers for loader creation, validation, optimizer schedule, EMA, and checkpoint selection. Use independent named streams including `sfps_latent_rollout`; materialize validation batches once; train exactly `max_updates`; select best EMA validation loss; preserve B1 output names and behavior.
 
-- [ ] **Step 4: Run training tests and commit**
+- [x] **Step 4: Run training tests and commit**
 
 Run: `uv run pytest env/tests/test_train_stage_b.py -q`
 

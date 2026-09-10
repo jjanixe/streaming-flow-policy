@@ -1,4 +1,4 @@
-"""Seeded finite-update training for the toy deterministic SFPD policy."""
+"""Seeded finite-update training for toy deterministic and stochastic policies."""
 
 from __future__ import annotations
 
@@ -17,18 +17,25 @@ from torch import nn
 from env.artifacts import save_json, train_data_digest
 from env.chunk_data import PushTChunkDataset, fit_pusht_stats
 from env.demonstrations import DemonstrationBank
-from env.drake_trajectory import SFPDDrakeTransform
-from env.models import SFPDVelocityMLP
-from env.sfp_policies import StreamingFlowPolicyDeterministic
+from env.drake_trajectory import SFPDDrakeTransform, SFPSDrakeTransform
+from env.models import SFPDVelocityMLP, SFPSVelocityMLP
+from env.sfp_policies import (
+    StreamingFlowPolicyDeterministic,
+    StreamingFlowPolicyStochastic,
+)
 from env.stage_b_artifacts import (
     CHECKPOINT_FORMAT_VERSION,
     save_pusht_stats,
     save_sfpd_checkpoint,
+    save_sfps_checkpoint,
 )
 from env.stage_b_config import (
     DEFAULT_STAGE_B1_CONFIG,
+    DEFAULT_STAGE_B2_CONFIG,
     StageB1Config,
+    StageB2Config,
     stage_b1_config_to_dict,
+    stage_b2_config_to_dict,
 )
 
 
@@ -40,6 +47,7 @@ SEED_STREAM_NAMES = (
     "rollout_initialization",
     "checkpoint_replay",
 )
+SFPS_SEED_STREAM_NAMES = (*SEED_STREAM_NAMES, "sfps_latent_rollout")
 
 
 @dataclass(frozen=True)
@@ -101,6 +109,16 @@ def _derive_seed_streams(root_seed: int) -> dict[str, int]:
     }
 
 
+def _derive_sfps_seed_streams(root_seed: int) -> dict[str, int]:
+    if type(root_seed) is not int or not 0 <= root_seed <= np.iinfo(np.uint32).max:
+        raise ValueError("root_seed must be a uint32-range integer")
+    children = np.random.SeedSequence(root_seed).spawn(len(SFPS_SEED_STREAM_NAMES))
+    return {
+        name: int(child.generate_state(1, dtype=np.uint32)[0])
+        for name, child in zip(SFPS_SEED_STREAM_NAMES, children)
+    }
+
+
 def _validate_training_config(config: StageB1Config) -> None:
     if config.validation_interval <= 0:
         raise ValueError("validation_interval must be positive")
@@ -138,6 +156,7 @@ def _materialize_validation_batches(
     dataset: PushTChunkDataset,
     batch_size: int,
     generator: torch.Generator,
+    tensor_names: tuple[str, ...] = ("obs", "x", "v", "t"),
 ) -> tuple[dict[str, torch.Tensor], ...]:
     loader = torch.utils.data.DataLoader(
         dataset,
@@ -149,7 +168,7 @@ def _materialize_validation_batches(
     materialized: list[dict[str, torch.Tensor]] = []
     for batch in loader:
         fixed_batch: dict[str, torch.Tensor] = {}
-        for name in ("obs", "x", "v", "t"):
+        for name in tensor_names:
             value = batch[name]
             if not isinstance(value, torch.Tensor) or value.dtype != torch.float32:
                 raise ValueError(f"validation {name} must be a float32 tensor")
@@ -207,6 +226,16 @@ def _architecture_metadata(config: StageB1Config) -> dict[str, Any]:
         "hidden_dim": config.hidden_dim,
         "hidden_layers": config.hidden_layers,
         "pred_horizon": config.pred_horizon,
+    }
+
+
+def _sfps_architecture_metadata(config: StageB2Config) -> dict[str, Any]:
+    return {
+        "name": "SFPSVelocityMLP",
+        "hidden_dim": config.hidden_dim,
+        "hidden_layers": config.hidden_layers,
+        "pred_horizon": config.pred_horizon,
+        "latent_dim": config.latent_dim,
     }
 
 
@@ -381,6 +410,190 @@ def train_sfpd(
         },
     }
     save_sfpd_checkpoint(
+        checkpoint_path,
+        raw_state=policy.state_dict(),
+        ema_state=best_ema_state,
+        metadata=metadata,
+    )
+    return TrainResult(
+        checkpoint_path=checkpoint_path,
+        stats_path=stats_path,
+        history_path=history_path,
+        selected_update=best_update,
+        validation_loss=float(best_loss),
+        seed_streams=dict(seed_streams),
+    )
+
+
+def train_sfps(
+    bank: DemonstrationBank,
+    output_dir: str | Path,
+    *,
+    config: StageB2Config = DEFAULT_STAGE_B2_CONFIG,
+    root_seed: int = 0,
+    device: str | torch.device = "cpu",
+) -> TrainResult:
+    """Train SFPS for exactly ``config.max_updates`` finite optimizer steps."""
+    _validate_training_config(config)
+    seed_streams = _derive_sfps_seed_streams(root_seed)
+    destination = Path(output_dir)
+    destination.mkdir(parents=True, exist_ok=True)
+    stats_path = destination / "pusht_stats.npz"
+    checkpoint_path = destination / "sfps_best.pt"
+    history_path = destination / "sfps_training_history.json"
+
+    digest = train_data_digest(bank)
+    stats = fit_pusht_stats(bank)
+    save_pusht_stats(stats_path, stats, digest)
+    train_dataset = PushTChunkDataset(
+        bank,
+        split="train",
+        stats=stats,
+        transform=SFPSDrakeTransform(
+            config.sigma0,
+            config.sigma1,
+            np.random.default_rng(seed_streams["train_transform"]),
+        ),
+    )
+    validation_dataset = PushTChunkDataset(
+        bank,
+        split="validation",
+        stats=stats,
+        transform=SFPSDrakeTransform(
+            config.sigma0,
+            config.sigma1,
+            np.random.default_rng(seed_streams["validation_transform"]),
+        ),
+    )
+    validation_batches = _materialize_validation_batches(
+        validation_dataset,
+        config.batch_size,
+        torch.Generator().manual_seed(seed_streams["validation_transform"]),
+        ("obs", "a", "z", "va", "vz", "t"),
+    )
+    shuffle_generator = torch.Generator().manual_seed(
+        seed_streams["dataloader_shuffle"]
+    )
+    train_loader = torch.utils.data.DataLoader(
+        train_dataset,
+        batch_size=config.batch_size,
+        shuffle=True,
+        num_workers=0,
+        generator=shuffle_generator,
+    )
+
+    resolved_device = torch.device(device)
+    if resolved_device.type == "cuda" and not torch.cuda.is_available():
+        raise ValueError("CUDA was requested but is not available")
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(seed_streams["model_initialization"])
+        velocity_net = SFPSVelocityMLP(
+            hidden_dim=config.hidden_dim,
+            hidden_layers=config.hidden_layers,
+        )
+    policy = StreamingFlowPolicyStochastic(
+        velocity_net,
+        pred_horizon=config.pred_horizon,
+        sigma0=config.sigma0,
+        sigma1=config.sigma1,
+        device=resolved_device,
+    ).to(resolved_device)
+    validation_policy = copy.deepcopy(policy)
+    optimizer = torch.optim.AdamW(
+        policy.parameters(),
+        lr=config.learning_rate,
+        weight_decay=config.weight_decay,
+    )
+    scheduler = torch.optim.lr_scheduler.LambdaLR(
+        optimizer,
+        lr_lambda=lambda step: _learning_rate_factor(
+            step,
+            warmup_updates=config.warmup_updates,
+            max_updates=config.max_updates,
+        ),
+    )
+    ema = ExponentialMovingAverage(policy, config.ema_decay)
+
+    training_history: list[dict[str, float | int]] = []
+    validation_history: list[dict[str, float | int]] = []
+    best_loss = math.inf
+    best_update = 0
+    best_ema_state: dict[str, torch.Tensor] | None = None
+    train_iterator = iter(train_loader)
+    for update in range(1, config.max_updates + 1):
+        try:
+            batch = next(train_iterator)
+        except StopIteration:
+            train_iterator = iter(train_loader)
+            batch = next(train_iterator)
+        policy.train()
+        optimizer.zero_grad(set_to_none=True)
+        loss = policy.loss(batch)
+        if loss.dtype != torch.float32 or not torch.isfinite(loss):
+            raise FloatingPointError("training loss is non-finite")
+        loss.backward()
+        _require_finite_gradients(policy)
+        learning_rate = float(optimizer.param_groups[0]["lr"])
+        optimizer.step()
+        _require_finite_float32_state(policy.state_dict(), "trained model")
+        ema.update(policy)
+        scheduler.step()
+        training_history.append(
+            {
+                "update": update,
+                "loss": float(loss.detach().item()),
+                "learning_rate": learning_rate,
+            }
+        )
+        if update % config.validation_interval == 0 or update == config.max_updates:
+            validation_policy.load_state_dict(ema.shadow, strict=True)
+            current_validation_loss = _validation_loss(
+                validation_policy,
+                validation_batches,
+            )
+            validation_history.append(
+                {"update": update, "loss": current_validation_loss}
+            )
+            if current_validation_loss < best_loss:
+                best_loss = current_validation_loss
+                best_update = update
+                best_ema_state = _cpu_state_copy(ema.shadow)
+
+    if best_ema_state is None or best_update <= 0 or not math.isfinite(best_loss):
+        raise RuntimeError("training completed without a finite validation checkpoint")
+    save_json(
+        history_path,
+        {"train": training_history, "validation": validation_history},
+    )
+    metadata = {
+        "format_version": CHECKPOINT_FORMAT_VERSION,
+        "model_type": "sfps",
+        "architecture": _sfps_architecture_metadata(config),
+        "stage_b2_config": stage_b2_config_to_dict(config),
+        "selected_update": best_update,
+        "validation_loss": float(best_loss),
+        "root_seed": root_seed,
+        "seed_streams": seed_streams,
+        "train_data_digest": digest,
+        "drake_version": importlib.metadata.version("drake"),
+        "numpy_version": importlib.metadata.version("numpy"),
+        "torch_version": str(torch.__version__),
+        "optimizer": {
+            "name": "AdamW",
+            "learning_rate": config.learning_rate,
+            "weight_decay": config.weight_decay,
+            "warmup_updates": config.warmup_updates,
+            "schedule": "linear_warmup_cosine",
+        },
+        "solver": {
+            "name": "dopri5",
+            "sensitivity": "adjoint",
+            "atol": 1e-4,
+            "rtol": 1e-4,
+            "integration_steps_per_action": config.integration_steps_per_action,
+        },
+    }
+    save_sfps_checkpoint(
         checkpoint_path,
         raw_state=policy.state_dict(),
         ema_state=best_ema_state,

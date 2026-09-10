@@ -8,9 +8,9 @@ import torch
 from env.artifacts import train_data_digest
 from env.config import DEFAULT_CONFIG
 from env.demonstrations import generate_demonstration_bank
-from env.stage_b_artifacts import load_sfpd_checkpoint
-from env.stage_b_config import DEFAULT_STAGE_B1_CONFIG
-from env.train_stage_b import ExponentialMovingAverage, train_sfpd
+from env.stage_b_artifacts import load_sfpd_checkpoint, load_sfps_checkpoint
+from env.stage_b_config import DEFAULT_STAGE_B1_CONFIG, DEFAULT_STAGE_B2_CONFIG
+from env.train_stage_b import ExponentialMovingAverage, train_sfpd, train_sfps
 
 
 def _small_bank(seed: int):
@@ -37,6 +37,21 @@ def _short_config(**overrides):
     }
     values.update(overrides)
     return replace(DEFAULT_STAGE_B1_CONFIG, **values)
+
+
+def _short_b2_config(**overrides):
+    values = {
+        "hidden_dim": 16,
+        "hidden_layers": 1,
+        "batch_size": 64,
+        "max_updates": 4,
+        "validation_interval": 2,
+        "warmup_updates": 1,
+        "rollout_count": 4,
+        "integration_steps_per_action": 1,
+    }
+    values.update(overrides)
+    return replace(DEFAULT_STAGE_B2_CONFIG, **values)
 
 
 def test_exponential_moving_average_updates_float32_and_integer_state():
@@ -152,6 +167,66 @@ def test_short_training_is_reproducible_and_restores_global_torch_rng(tmp_path):
                 rtol=0.0,
                 atol=0.0,
             )
+
+
+def test_short_sfps_training_is_finite_reproducible_and_restores_rng(tmp_path):
+    bank = _small_bank(seed=101)
+    config = _short_b2_config(max_updates=3, validation_interval=2)
+    torch.manual_seed(91011)
+    global_rng_before = torch.random.get_rng_state().clone()
+
+    first = train_sfps(
+        bank,
+        tmp_path / "first",
+        config=config,
+        root_seed=102,
+        device="cpu",
+    )
+    rng_after_first = torch.random.get_rng_state().clone()
+    second = train_sfps(
+        bank,
+        tmp_path / "second",
+        config=config,
+        root_seed=102,
+        device="cpu",
+    )
+
+    assert torch.equal(global_rng_before, rng_after_first)
+    assert torch.equal(global_rng_before, torch.random.get_rng_state())
+    assert first.checkpoint_path.name == "sfps_best.pt"
+    assert first.history_path.name == "sfps_training_history.json"
+    assert first.validation_loss == second.validation_loss
+    assert first.history_path.read_bytes() == second.history_path.read_bytes()
+    assert set(first.seed_streams) == {
+        "model_initialization",
+        "dataloader_shuffle",
+        "train_transform",
+        "validation_transform",
+        "rollout_initialization",
+        "checkpoint_replay",
+        "sfps_latent_rollout",
+    }
+    one = load_sfps_checkpoint(
+        first.checkpoint_path,
+        expected_train_data_digest=train_data_digest(bank),
+    )
+    two = load_sfps_checkpoint(
+        second.checkpoint_path,
+        expected_train_data_digest=train_data_digest(bank),
+    )
+    assert one["metadata"]["stage_b2_config"]["sigma0"] == 0.1
+    assert one["metadata"]["stage_b2_config"]["sigma1"] == 0.1
+    for state_name in ("raw_state", "ema_state"):
+        for name, first_value in one[state_name].items():
+            torch.testing.assert_close(
+                first_value,
+                two[state_name][name],
+                rtol=0.0,
+                atol=0.0,
+            )
+            if first_value.is_floating_point():
+                assert first_value.dtype == torch.float32
+                assert torch.isfinite(first_value).all()
 
 
 def test_training_rejects_nonfinite_model_loss_before_writing_checkpoint(
