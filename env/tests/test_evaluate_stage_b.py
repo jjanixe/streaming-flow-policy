@@ -11,9 +11,13 @@ from env.demonstrations import generate_demonstration_bank
 from env.evaluate_stage_b import (
     SFPDRollout,
     SFPDRolloutBatch,
+    SFPSRollout,
+    SFPSRolloutBatch,
     aggregate_sfpd_metrics,
     evaluate_sfpd,
+    evaluate_sfps,
     rollout_sfpd,
+    rollout_sfps,
     stage_b1_acceptance_failures,
 )
 from env.sfp_policies import PolicyNumericalError
@@ -60,6 +64,114 @@ class NumericallyFailingPolicy(ScriptedNormalizedPolicy):
 class AlwaysNumericallyFailingPolicy:
     def predict(self, nobs, num_actions, integration_steps_per_action):
         raise PolicyNumericalError("adaptive solver produced non-finite state")
+
+
+class ScriptedStochasticPolicy:
+    device = torch.device("cpu")
+
+    def __init__(self, normalized_positions: np.ndarray) -> None:
+        self.normalized_positions = normalized_positions
+        self.calls = 0
+        self.latents: list[np.ndarray] = []
+
+    def sample_latent(self, generator):
+        return torch.randn((2,), dtype=torch.float32, generator=generator)
+
+    def predict(
+        self,
+        nobs,
+        num_actions,
+        integration_steps_per_action,
+        *,
+        latent,
+    ):
+        assert num_actions == 9
+        self.latents.append(latent.detach().cpu().numpy().copy())
+        start = self.calls * 8
+        self.calls += 1
+        return torch.from_numpy(self.normalized_positions[start : start + 9][None])
+
+
+class LatentSensitiveStochasticPolicy:
+    device = torch.device("cpu")
+
+    def sample_latent(self, generator):
+        return torch.randn((2,), dtype=torch.float32, generator=generator)
+
+    def predict(
+        self,
+        nobs,
+        num_actions,
+        integration_steps_per_action,
+        *,
+        latent,
+    ):
+        anchor = nobs[-1, :2]
+        fractions = torch.linspace(0.0, 1.0, 9, dtype=torch.float32)[:, None]
+        delta = 0.02 * torch.tanh(latent)[None, :]
+        return (anchor[None, :] + fractions * delta).unsqueeze(0)
+
+
+def test_sfps_rollout_uses_fresh_seeded_latent_at_each_chunk():
+    bank = generate_demonstration_bank(DEFAULT_CONFIG, seed=301)
+    stats = fit_pusht_stats(bank)
+    normalized_expert = normalize_actions(bank.select("test").positions[0], stats)
+    first_policy = ScriptedStochasticPolicy(normalized_expert)
+    second_policy = ScriptedStochasticPolicy(normalized_expert)
+
+    first = rollout_sfps(
+        first_policy,
+        stats,
+        DEFAULT_CONFIG.environment,
+        environment_seed=302,
+        latent_seed=303,
+        center_init=True,
+        integration_steps_per_action=1,
+    )
+    second = rollout_sfps(
+        second_policy,
+        stats,
+        DEFAULT_CONFIG.environment,
+        environment_seed=302,
+        latent_seed=303,
+        center_init=True,
+        integration_steps_per_action=1,
+    )
+
+    assert isinstance(first, SFPSRollout)
+    assert first_policy.calls == 8
+    assert first.latent_seed == 303
+    assert first.chunk_latents.shape == (8, 2)
+    assert first.chunk_latents.dtype == np.float32
+    assert len({row.tobytes() for row in first.chunk_latents}) == 8
+    np.testing.assert_array_equal(first.chunk_latents, second.chunk_latents)
+    np.testing.assert_array_equal(first.executed_positions, second.executed_positions)
+    np.testing.assert_array_equal(first.raw_predicted_chunks, second.raw_predicted_chunks)
+
+
+def test_sfps_centered_evaluation_changes_only_latent_streams():
+    bank = generate_demonstration_bank(DEFAULT_CONFIG, seed=304)
+    stats = fit_pusht_stats(bank)
+
+    metrics, batch = evaluate_sfps(
+        LatentSensitiveStochasticPolicy(),
+        stats,
+        DEFAULT_CONFIG.environment,
+        environment_seeds=[305, 305, 305],
+        latent_seeds=[306, 307, 308],
+        center_init=True,
+        integration_steps_per_action=1,
+    )
+
+    assert isinstance(batch, SFPSRolloutBatch)
+    assert all(
+        np.array_equal(batch.rollouts[0].initial_observation, rollout.initial_observation)
+        for rollout in batch.rollouts[1:]
+    )
+    assert metrics["same_state_diversity_applicable"] is True
+    assert metrics["same_state_unique_raw_trajectory_count"] > 1
+    assert metrics["same_state_stochastic_diversity_observed"] is True
+    assert metrics["latent_seed_count"] == 3
 
 
 def test_rollout_replans_eight_times_and_executes_64_actions():

@@ -359,7 +359,7 @@ Commit: `git commit -m "feat: train reproducible toy SFPS"`
 - Consumes: an SFPS policy with `predict(nobs, num_actions, integration_steps_per_action, *, generator)`, PushT stats, environment seed, and latent root seed.
 - Produces: model-typed `StreamingRollout`, `StreamingRolloutBatch`, `rollout_sfps`, `evaluate_sfps`, latent-seed audit, and the existing acceptance metrics.
 
-- [ ] **Step 1: Write failing seeded replay and fresh-per-chunk tests**
+- [x] **Step 1: Write failing seeded replay and fresh-per-chunk tests**
 
 ```python
 def test_sfps_rollout_uses_fresh_seeded_latent_at_each_chunk():
@@ -373,21 +373,21 @@ def test_sfps_rollout_uses_fresh_seeded_latent_at_each_chunk():
 
 Add a centered batch test where the environment seed is fixed and latent seeds vary; assert initial observations are identical, the controlled-diversity metric is applicable, and at least two raw generated trajectories differ for a latent-sensitive fixture.
 
-- [ ] **Step 2: Run evaluation tests and verify RED**
+- [x] **Step 2: Run evaluation tests and verify RED**
 
 Run: `uv run pytest env/tests/test_evaluate_stage_b.py -q`
 
 Expected: import failure for `rollout_sfps`/`evaluate_sfps`.
 
-- [ ] **Step 3: Generalize rollout records without losing B1 provenance**
+- [x] **Step 3: Generalize rollout records without losing B1 provenance**
 
 Use a shared immutable rollout record with `model_type`, `environment_seed`, optional `latent_seed`, and float32 `chunk_latents[C,2]` for SFPS. Keep aliases or constructors so existing `SFPDRollout` and `SFPDRolloutBatch` tests continue to pass. The rollout loop must pass one persistent local `torch.Generator` through all eight replans so each boundary consumes a fresh latent deterministically.
 
-- [ ] **Step 4: Implement B2 aggregation and diagnostics**
+- [x] **Step 4: Implement B2 aggregation and diagnostics**
 
 Reuse goal, failure, anchor, midpoint, and action-limit accounting. Add `same_state_unique_raw_trajectory_count`, `same_state_unique_executed_trajectory_count`, latent seed counts, and `same_state_stochastic_diversity_observed`. Apply distribution gates to both Gaussian and centered B2 batches while reporting failures before midpoint separately.
 
-- [ ] **Step 5: Run evaluation tests and commit**
+- [x] **Step 5: Run evaluation tests and commit**
 
 Run: `uv run pytest env/tests/test_evaluate_stage_b.py -q`
 
