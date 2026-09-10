@@ -270,7 +270,7 @@ Commit: `git commit -m "feat: add stochastic latent streaming policy"`
 - Consumes: canonical SFPS wrapper state and B2 metadata.
 - Produces: `save_sfps_checkpoint`, `load_sfps_checkpoint`, and model-typed checkpoint schema validation.
 
-- [ ] **Step 1: Write failing SFPS checkpoint tests**
+- [x] **Step 1: Write failing SFPS checkpoint tests**
 
 ```python
 def test_sfps_checkpoint_round_trip_validates_joint_architecture(tmp_path):
@@ -285,17 +285,17 @@ def test_sfps_checkpoint_round_trip_validates_joint_architecture(tmp_path):
 
 Add mutations for wrong model type, wrong `sigma0/sigma1`, wrong latent dimension, missing state key, wrong state shape/dtype, inconsistent seed streams, and ensure all existing SFPD rejection tests remain unchanged.
 
-- [ ] **Step 2: Run checkpoint tests and verify RED**
+- [x] **Step 2: Run checkpoint tests and verify RED**
 
 Run: `uv run pytest env/tests/test_stage_b_artifacts.py -q`
 
 Expected: import failures for SFPS save/load helpers.
 
-- [ ] **Step 3: Generalize internal validators by explicit model type**
+- [x] **Step 3: Generalize internal validators by explicit model type**
 
 Keep public B1 functions and metadata compatibility. Add B2 metadata key `stage_b2_config`, architecture name `SFPSVelocityMLP`, and wrapper buffers `pred_horizon`, `sigma0`, `sigma1`, `sigma_r`. Construct the canonical policy inside `torch.random.fork_rng` so loading never advances caller RNG state.
 
-- [ ] **Step 4: Run checkpoint tests and commit**
+- [x] **Step 4: Run checkpoint tests and commit**
 
 Run: `uv run pytest env/tests/test_stage_b_artifacts.py -q`
 

@@ -12,7 +12,12 @@ import numpy as np
 import torch
 
 from env.chunk_data import PushTStats
-from env.stage_b_config import StageB1Config, stage_b1_config_to_dict
+from env.stage_b_config import (
+    StageB1Config,
+    StageB2Config,
+    stage_b1_config_to_dict,
+    stage_b2_config_to_dict,
+)
 
 
 CHECKPOINT_FORMAT_VERSION = 1
@@ -33,6 +38,9 @@ REQUIRED_METADATA = {
     "optimizer",
     "solver",
 }
+SFPS_REQUIRED_METADATA = (
+    REQUIRED_METADATA.difference({"stage_b1_config"}) | {"stage_b2_config"}
+)
 
 SEED_STREAM_NAMES = (
     "model_initialization",
@@ -42,6 +50,7 @@ SEED_STREAM_NAMES = (
     "rollout_initialization",
     "checkpoint_replay",
 )
+SFPS_SEED_STREAM_NAMES = (*SEED_STREAM_NAMES, "sfps_latent_rollout")
 UINT32_MAX = np.iinfo(np.uint32).max
 
 
@@ -249,6 +258,22 @@ def save_sfpd_checkpoint(
     )
 
 
+def save_sfps_checkpoint(
+    path: str | Path,
+    *,
+    raw_state: Mapping[str, torch.Tensor],
+    ema_state: Mapping[str, torch.Tensor],
+    metadata: Mapping[str, Any],
+) -> None:
+    """Save a weights-only-compatible stochastic SFPS checkpoint."""
+    save_sfpd_checkpoint(
+        path,
+        raw_state=raw_state,
+        ema_state=ema_state,
+        metadata=metadata,
+    )
+
+
 def _validate_architecture(architecture: object) -> dict[str, Any]:
     if not isinstance(architecture, dict):
         raise ValueError("checkpoint architecture must be a dictionary")
@@ -270,6 +295,29 @@ def _validate_architecture(architecture: object) -> dict[str, Any]:
     return architecture
 
 
+def _validate_sfps_architecture(architecture: object) -> dict[str, Any]:
+    if not isinstance(architecture, dict):
+        raise ValueError("checkpoint architecture must be a dictionary")
+    expected_keys = {
+        "name",
+        "hidden_dim",
+        "hidden_layers",
+        "pred_horizon",
+        "latent_dim",
+    }
+    if set(architecture) != expected_keys:
+        raise ValueError("checkpoint architecture has invalid schema")
+    if architecture.get("name") != "SFPSVelocityMLP":
+        raise ValueError("checkpoint architecture is not SFPSVelocityMLP")
+    for key in ("hidden_dim", "hidden_layers", "pred_horizon", "latent_dim"):
+        value = architecture.get(key)
+        if type(value) is not int or value <= 0:
+            raise ValueError(f"checkpoint architecture has invalid {key}")
+    if architecture["pred_horizon"] != 16 or architecture["latent_dim"] != 2:
+        raise ValueError("checkpoint architecture is incompatible")
+    return architecture
+
+
 def _canonical_policy_state_contract(
     architecture: Mapping[str, Any],
 ) -> tuple[
@@ -287,6 +335,39 @@ def _canonical_policy_state_contract(
                 hidden_layers=architecture["hidden_layers"],
             ),
             pred_horizon=architecture["pred_horizon"],
+            device="cpu",
+        )
+    schema = {
+        name: (tuple(value.shape), value.dtype)
+        for name, value in policy.state_dict().items()
+    }
+    immutable_buffers = {
+        name: value.detach().to(device="cpu", copy=True)
+        for name, value in policy.named_buffers()
+    }
+    return schema, immutable_buffers
+
+
+def _canonical_sfps_policy_state_contract(
+    architecture: Mapping[str, Any],
+    config: StageB2Config,
+) -> tuple[
+    dict[str, tuple[tuple[int, ...], torch.dtype]],
+    dict[str, torch.Tensor],
+]:
+    """Derive the exact SFPS wrapper state schema without advancing Torch RNG."""
+    from env.models import SFPSVelocityMLP
+    from env.sfp_policies import StreamingFlowPolicyStochastic
+
+    with torch.random.fork_rng(devices=[]):
+        policy = StreamingFlowPolicyStochastic(
+            SFPSVelocityMLP(
+                hidden_dim=architecture["hidden_dim"],
+                hidden_layers=architecture["hidden_layers"],
+            ),
+            pred_horizon=architecture["pred_horizon"],
+            sigma0=config.sigma0,
+            sigma1=config.sigma1,
             device="cpu",
         )
     schema = {
@@ -340,6 +421,18 @@ def _validate_stage_b1_config(value: object) -> StageB1Config:
         raise ValueError(f"checkpoint stage_b1_config is invalid: {error}") from error
 
 
+def _validate_stage_b2_config(value: object) -> StageB2Config:
+    if not isinstance(value, dict):
+        raise ValueError("checkpoint stage_b2_config must be a dictionary")
+    expected_keys = set(stage_b2_config_to_dict(StageB2Config()))
+    if set(value) != expected_keys:
+        raise ValueError("checkpoint stage_b2_config has invalid schema")
+    try:
+        return StageB2Config(**value)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"checkpoint stage_b2_config is invalid: {error}") from error
+
+
 def _validate_seed_metadata(metadata: Mapping[str, Any]) -> None:
     root_seed = metadata["root_seed"]
     if type(root_seed) is not int or not 0 <= root_seed <= UINT32_MAX:
@@ -360,6 +453,31 @@ def _validate_seed_metadata(metadata: Mapping[str, Any]) -> None:
         for name, child in zip(SEED_STREAM_NAMES, children)
     }
     if seed_streams != expected_seed_streams:
+        raise ValueError(
+            "checkpoint seed_streams do not match deterministic root_seed streams"
+        )
+
+
+def _validate_sfps_seed_metadata(metadata: Mapping[str, Any]) -> None:
+    root_seed = metadata["root_seed"]
+    if type(root_seed) is not int or not 0 <= root_seed <= UINT32_MAX:
+        raise ValueError("checkpoint root_seed must be a uint32-range integer")
+    seed_streams = metadata["seed_streams"]
+    if not isinstance(seed_streams, dict) or set(seed_streams) != set(
+        SFPS_SEED_STREAM_NAMES
+    ):
+        raise ValueError("checkpoint seed_streams has invalid names")
+    if any(
+        type(seed) is not int or not 0 <= seed <= UINT32_MAX
+        for seed in seed_streams.values()
+    ):
+        raise ValueError("checkpoint seed_streams values must be uint32-range ints")
+    children = np.random.SeedSequence(root_seed).spawn(len(SFPS_SEED_STREAM_NAMES))
+    expected = {
+        name: int(child.generate_state(1, dtype=np.uint32)[0])
+        for name, child in zip(SFPS_SEED_STREAM_NAMES, children)
+    }
+    if seed_streams != expected:
         raise ValueError(
             "checkpoint seed_streams do not match deterministic root_seed streams"
         )
@@ -505,6 +623,110 @@ def load_sfpd_checkpoint(
         raise ValueError("raw and EMA checkpoint states must have identical keys")
     canonical_schema, immutable_buffers = _canonical_policy_state_contract(
         architecture
+    )
+    _validate_checkpoint_state_schema(raw_state, canonical_schema, "raw_state")
+    _validate_checkpoint_state_schema(ema_state, canonical_schema, "ema_state")
+    _validate_immutable_buffers(raw_state, immutable_buffers, "raw_state")
+    _validate_immutable_buffers(ema_state, immutable_buffers, "ema_state")
+    return {
+        "raw_state": raw_state,
+        "ema_state": ema_state,
+        "metadata": copy.deepcopy(metadata),
+    }
+
+
+def load_sfps_checkpoint(
+    path: str | Path,
+    *,
+    expected_train_data_digest: str,
+    expected_architecture: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Load and validate an SFPS checkpoint before model construction/loading."""
+    payload = torch.load(Path(path), map_location="cpu", weights_only=True)
+    if not isinstance(payload, dict):
+        raise ValueError("checkpoint payload must be a dictionary")
+    if not {"raw_state", "ema_state", "metadata"}.issubset(payload):
+        raise ValueError("checkpoint payload is missing state or metadata")
+    metadata = payload["metadata"]
+    if not isinstance(metadata, dict):
+        raise ValueError("checkpoint metadata must be a dictionary")
+    expected_digest = _require_digest(expected_train_data_digest)
+    if metadata.get("train_data_digest") != expected_digest:
+        raise ValueError("checkpoint train data digest does not match")
+    missing = SFPS_REQUIRED_METADATA.difference(metadata)
+    if missing:
+        raise ValueError(f"checkpoint metadata is missing keys: {sorted(missing)}")
+    _validate_portable_metadata(metadata)
+    if (
+        type(metadata["format_version"]) is not int
+        or metadata["format_version"] != CHECKPOINT_FORMAT_VERSION
+    ):
+        raise ValueError("checkpoint format version is incompatible")
+    if metadata["model_type"] != "sfps":
+        raise ValueError("checkpoint model type is incompatible")
+    architecture = _validate_sfps_architecture(metadata["architecture"])
+    if expected_architecture is not None and architecture != dict(
+        expected_architecture
+    ):
+        raise ValueError(
+            "checkpoint architecture does not match the expected architecture"
+        )
+    config = _validate_stage_b2_config(metadata["stage_b2_config"])
+    if architecture != {
+        "name": "SFPSVelocityMLP",
+        "hidden_dim": config.hidden_dim,
+        "hidden_layers": config.hidden_layers,
+        "pred_horizon": config.pred_horizon,
+        "latent_dim": config.latent_dim,
+    }:
+        raise ValueError("checkpoint architecture is inconsistent with configuration")
+    if (
+        type(metadata["selected_update"]) is not int
+        or not 1 <= metadata["selected_update"] <= config.max_updates
+    ):
+        raise ValueError("checkpoint selected_update is outside training bounds")
+    validation_loss = metadata["validation_loss"]
+    if (
+        type(validation_loss) is not float
+        or not math.isfinite(validation_loss)
+        or validation_loss < 0.0
+    ):
+        raise ValueError("checkpoint validation_loss must be finite and nonnegative")
+    for version_name in ("drake_version", "numpy_version", "torch_version"):
+        version = metadata[version_name]
+        if not isinstance(version, str) or not version.strip():
+            raise ValueError(f"checkpoint {version_name} must be a nonempty version")
+    _validate_sfps_seed_metadata(metadata)
+    _validate_optimizer_metadata(metadata["optimizer"], config)
+    _validate_solver_metadata(metadata["solver"], config)
+
+    raw_state = _copy_checkpoint_state(payload["raw_state"], "raw_state")
+    ema_state = _copy_checkpoint_state(payload["ema_state"], "ema_state")
+    if raw_state.keys() != ema_state.keys():
+        raise ValueError(
+            "raw and EMA checkpoint state schema keys must be identical"
+        )
+    for buffer_name in ("sigma0", "sigma1", "sigma_r"):
+        if buffer_name in raw_state and buffer_name in ema_state and not torch.equal(
+            raw_state[buffer_name], ema_state[buffer_name]
+        ):
+            raise ValueError(
+                f"raw and EMA immutable buffer {buffer_name!r} do not match"
+            )
+    for buffer_name, expected_value in (
+        ("sigma0", config.sigma0),
+        ("sigma1", config.sigma1),
+    ):
+        expected_tensor = torch.tensor(expected_value, dtype=torch.float32)
+        if buffer_name in raw_state and not torch.equal(
+            raw_state[buffer_name], expected_tensor
+        ):
+            raise ValueError(
+                "checkpoint SFPS configuration is inconsistent with sigma buffers"
+            )
+    canonical_schema, immutable_buffers = _canonical_sfps_policy_state_contract(
+        architecture,
+        config,
     )
     _validate_checkpoint_state_schema(raw_state, canonical_schema, "raw_state")
     _validate_checkpoint_state_schema(ema_state, canonical_schema, "ema_state")

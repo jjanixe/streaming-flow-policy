@@ -10,16 +10,26 @@ from env.artifacts import train_data_digest
 from env.chunk_data import fit_pusht_stats
 from env.config import DEFAULT_CONFIG
 from env.demonstrations import generate_demonstration_bank
-from env.models import SFPDVelocityMLP
-from env.sfp_policies import StreamingFlowPolicyDeterministic
+from env.models import SFPDVelocityMLP, SFPSVelocityMLP
+from env.sfp_policies import (
+    StreamingFlowPolicyDeterministic,
+    StreamingFlowPolicyStochastic,
+)
 from env.stage_b_artifacts import (
     CHECKPOINT_FORMAT_VERSION,
     load_pusht_stats,
     load_sfpd_checkpoint,
+    load_sfps_checkpoint,
     save_pusht_stats,
     save_sfpd_checkpoint,
+    save_sfps_checkpoint,
 )
-from env.stage_b_config import DEFAULT_STAGE_B1_CONFIG, stage_b1_config_to_dict
+from env.stage_b_config import (
+    DEFAULT_STAGE_B1_CONFIG,
+    DEFAULT_STAGE_B2_CONFIG,
+    stage_b1_config_to_dict,
+    stage_b2_config_to_dict,
+)
 
 
 _TEST_CONFIG = replace(
@@ -37,6 +47,15 @@ _SEED_STREAM_NAMES = (
     "validation_transform",
     "rollout_initialization",
     "checkpoint_replay",
+)
+_SFPS_SEED_STREAM_NAMES = (*_SEED_STREAM_NAMES, "sfps_latent_rollout")
+_TEST_B2_CONFIG = replace(
+    DEFAULT_STAGE_B2_CONFIG,
+    hidden_dim=16,
+    hidden_layers=1,
+    max_updates=4,
+    validation_interval=2,
+    warmup_updates=1,
 )
 
 
@@ -86,10 +105,135 @@ def _complete_metadata(**overrides):
     return metadata
 
 
+def _complete_sfps_metadata(**overrides):
+    root_seed = 29
+    children = np.random.SeedSequence(root_seed).spawn(
+        len(_SFPS_SEED_STREAM_NAMES)
+    )
+    metadata = {
+        "format_version": CHECKPOINT_FORMAT_VERSION,
+        "model_type": "sfps",
+        "architecture": {
+            "name": "SFPSVelocityMLP",
+            "hidden_dim": 16,
+            "hidden_layers": 1,
+            "pred_horizon": 16,
+            "latent_dim": 2,
+        },
+        "stage_b2_config": stage_b2_config_to_dict(_TEST_B2_CONFIG),
+        "selected_update": 2,
+        "validation_loss": 0.5,
+        "root_seed": root_seed,
+        "seed_streams": {
+            name: int(child.generate_state(1, dtype=np.uint32)[0])
+            for name, child in zip(_SFPS_SEED_STREAM_NAMES, children)
+        },
+        "train_data_digest": "correct",
+        "drake_version": "1.26.0",
+        "numpy_version": "1.26.4",
+        "torch_version": "2.7.1+cu126",
+        "optimizer": {
+            "name": "AdamW",
+            "learning_rate": 1e-4,
+            "weight_decay": 1e-6,
+            "warmup_updates": 1,
+            "schedule": "linear_warmup_cosine",
+        },
+        "solver": {
+            "name": "dopri5",
+            "sensitivity": "adjoint",
+            "atol": 1e-4,
+            "rtol": 1e-4,
+            "integration_steps_per_action": 6,
+        },
+    }
+    metadata.update(overrides)
+    return metadata
+
+
 def _policy_state(hidden_dim=16, hidden_layers=1):
     return StreamingFlowPolicyDeterministic(
         SFPDVelocityMLP(hidden_dim=hidden_dim, hidden_layers=hidden_layers)
     ).state_dict()
+
+
+def _sfps_policy_state(hidden_dim=16, hidden_layers=1, sigma0=0.1, sigma1=0.1):
+    return StreamingFlowPolicyStochastic(
+        SFPSVelocityMLP(hidden_dim=hidden_dim, hidden_layers=hidden_layers),
+        sigma0=sigma0,
+        sigma1=sigma1,
+    ).state_dict()
+
+
+def test_sfps_checkpoint_round_trip_keeps_joint_architecture_and_rng(tmp_path):
+    state = _sfps_policy_state()
+    path = tmp_path / "sfps.pt"
+    save_sfps_checkpoint(
+        path,
+        raw_state=state,
+        ema_state=state,
+        metadata=_complete_sfps_metadata(),
+    )
+    torch.manual_seed(731)
+    rng_before = torch.random.get_rng_state().clone()
+
+    loaded = load_sfps_checkpoint(
+        path,
+        expected_train_data_digest="correct",
+        expected_architecture=_complete_sfps_metadata()["architecture"],
+    )
+
+    assert loaded["metadata"]["model_type"] == "sfps"
+    assert loaded["metadata"]["architecture"]["name"] == "SFPSVelocityMLP"
+    assert torch.equal(rng_before, torch.random.get_rng_state())
+    for state_name in ("raw_state", "ema_state"):
+        for value in loaded[state_name].values():
+            if value.is_floating_point():
+                assert value.dtype == torch.float32
+                assert torch.isfinite(value).all()
+
+
+@pytest.mark.parametrize(
+    "case,match",
+    [
+        ("model_type", "model type"),
+        ("latent_dim", "architecture"),
+        ("sigma", "immutable buffer"),
+        ("config_sigma", "configuration"),
+        ("seed_names", "seed_streams"),
+        ("missing_state", "state schema"),
+    ],
+)
+def test_sfps_checkpoint_rejects_incompatible_metadata_and_state(
+    tmp_path,
+    case,
+    match,
+):
+    metadata = copy.deepcopy(_complete_sfps_metadata())
+    raw_state = dict(_sfps_policy_state())
+    ema_state = {name: value.clone() for name, value in raw_state.items()}
+    if case == "model_type":
+        metadata["model_type"] = "sfpd"
+    elif case == "latent_dim":
+        metadata["architecture"]["latent_dim"] = 3
+    elif case == "sigma":
+        raw_state["sigma1"] = torch.tensor(0.2, dtype=torch.float32)
+    elif case == "config_sigma":
+        metadata["stage_b2_config"]["sigma1"] = 0.2
+    elif case == "seed_names":
+        metadata["seed_streams"].pop("sfps_latent_rollout")
+    else:
+        raw_state.pop("velocity_net.network.0.weight")
+    path = tmp_path / f"sfps_{case}.pt"
+    save_sfps_checkpoint(
+        path,
+        raw_state=raw_state,
+        ema_state=ema_state,
+        metadata=metadata,
+    )
+
+    with pytest.raises(ValueError, match=match):
+        load_sfps_checkpoint(path, expected_train_data_digest="correct")
 
 
 def test_pusht_stats_round_trip_without_pickle(tmp_path):
