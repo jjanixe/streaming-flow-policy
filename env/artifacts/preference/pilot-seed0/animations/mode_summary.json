@@ -1,0 +1,146 @@
+{
+  "centered/upper_narrow/learned_20": {
+    "target_hits": 2,
+    "count": 16,
+    "goal_successes": 16,
+    "episode_0_mode": "other",
+    "episode_0_goal_success": true,
+    "episode_0_environment_seed": 2214077229,
+    "source": "centered--upper_narrow--learned_20.npz"
+  },
+  "centered/upper_wide/learned_20": {
+    "target_hits": 0,
+    "count": 16,
+    "goal_successes": 16,
+    "episode_0_mode": "lower_narrow",
+    "episode_0_goal_success": true,
+    "episode_0_environment_seed": 2214077229,
+    "source": "centered--upper_wide--learned_20.npz"
+  },
+  "centered/lower_narrow/learned_20": {
+    "target_hits": 5,
+    "count": 16,
+    "goal_successes": 16,
+    "episode_0_mode": "other",
+    "episode_0_goal_success": true,
+    "episode_0_environment_seed": 2214077229,
+    "source": "centered--lower_narrow--learned_20.npz"
+  },
+  "centered/lower_wide/learned_20": {
+    "target_hits": 0,
+    "count": 16,
+    "goal_successes": 16,
+    "episode_0_mode": "lower_narrow",
+    "episode_0_goal_success": true,
+    "episode_0_environment_seed": 2214077229,
+    "source": "centered--lower_wide--learned_20.npz"
+  },
+  "centered/upper_narrow/oracle_best": {
+    "target_hits": 6,
+    "count": 16,
+    "goal_successes": 16,
+    "episode_0_mode": "upper_narrow",
+    "episode_0_goal_success": true,
+    "episode_0_environment_seed": 2214077229,
+    "source": "centered--upper_narrow--oracle_best.npz"
+  },
+  "centered/upper_wide/oracle_best": {
+    "target_hits": 0,
+    "count": 16,
+    "goal_successes": 16,
+    "episode_0_mode": "upper_narrow",
+    "episode_0_goal_success": true,
+    "episode_0_environment_seed": 2214077229,
+    "source": "centered--upper_wide--oracle_best.npz"
+  },
+  "centered/lower_narrow/oracle_best": {
+    "target_hits": 13,
+    "count": 16,
+    "goal_successes": 16,
+    "episode_0_mode": "lower_narrow",
+    "episode_0_goal_success": true,
+    "episode_0_environment_seed": 2214077229,
+    "source": "centered--lower_narrow--oracle_best.npz"
+  },
+  "centered/lower_wide/oracle_best": {
+    "target_hits": 0,
+    "count": 16,
+    "goal_successes": 16,
+    "episode_0_mode": "lower_narrow",
+    "episode_0_goal_success": true,
+    "episode_0_environment_seed": 2214077229,
+    "source": "centered--lower_wide--oracle_best.npz"
+  },
+  "gaussian/upper_narrow/learned_20": {
+    "target_hits": 3,
+    "count": 16,
+    "goal_successes": 14,
+    "episode_0_mode": "upper_wide",
+    "episode_0_goal_success": true,
+    "episode_0_environment_seed": 2214077229,
+    "source": "gaussian--upper_narrow--learned_20.npz"
+  },
+  "gaussian/upper_wide/learned_20": {
+    "target_hits": 6,
+    "count": 16,
+    "goal_successes": 14,
+    "episode_0_mode": "upper_wide",
+    "episode_0_goal_success": true,
+    "episode_0_environment_seed": 2214077229,
+    "source": "gaussian--upper_wide--learned_20.npz"
+  },
+  "gaussian/lower_narrow/learned_20": {
+    "target_hits": 1,
+    "count": 16,
+    "goal_successes": 14,
+    "episode_0_mode": "upper_wide",
+    "episode_0_goal_success": true,
+    "episode_0_environment_seed": 2214077229,
+    "source": "gaussian--lower_narrow--learned_20.npz"
+  },
+  "gaussian/lower_wide/learned_20": {
+    "target_hits": 9,
+    "count": 16,
+    "goal_successes": 14,
+    "episode_0_mode": "upper_wide",
+    "episode_0_goal_success": true,
+    "episode_0_environment_seed": 2214077229,
+    "source": "gaussian--lower_wide--learned_20.npz"
+  },
+  "gaussian/upper_narrow/oracle_best": {
+    "target_hits": 2,
+    "count": 16,
+    "goal_successes": 16,
+    "episode_0_mode": "upper_wide",
+    "episode_0_goal_success": true,
+    "episode_0_environment_seed": 2214077229,
+    "source": "gaussian--upper_narrow--oracle_best.npz"
+  },
+  "gaussian/upper_wide/oracle_best": {
+    "target_hits": 6,
+    "count": 16,
+    "goal_successes": 16,
+    "episode_0_mode": "upper_wide",
+    "episode_0_goal_success": true,
+    "episode_0_environment_seed": 2214077229,
+    "source": "gaussian--upper_wide--oracle_best.npz"
+  },
+  "gaussian/lower_narrow/oracle_best": {
+    "target_hits": 4,
+    "count": 16,
+    "goal_successes": 16,
+    "episode_0_mode": "upper_wide",
+    "episode_0_goal_success": true,
+    "episode_0_environment_seed": 2214077229,
+    "source": "gaussian--lower_narrow--oracle_best.npz"
+  },
+  "gaussian/lower_wide/oracle_best": {
+    "target_hits": 9,
+    "count": 16,
+    "goal_successes": 16,
+    "episode_0_mode": "upper_wide",
+    "episode_0_goal_success": true,
+    "episode_0_environment_seed": 2214077229,
+    "source": "gaussian--lower_wide--oracle_best.npz"
+  }
+}

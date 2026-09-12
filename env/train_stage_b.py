@@ -15,9 +15,18 @@ import torch
 from torch import nn
 
 from env.artifacts import save_json, train_data_digest
-from env.chunk_data import PushTChunkDataset, fit_pusht_stats
+from env.chunk_data import (
+    MaterializedPushTTrainingDataset,
+    PushTChunkDataset,
+    fit_pusht_stats,
+)
 from env.demonstrations import DemonstrationBank
-from env.drake_trajectory import SFPDDrakeTransform, SFPSDrakeTransform
+from env.drake_trajectory import (
+    SFPDDrakeTransform,
+    SFPSDrakeTransform,
+    sample_sfpd_training_targets,
+    sample_sfps_training_targets,
+)
 from env.models import SFPDVelocityMLP, SFPSVelocityMLP
 from env.sfp_policies import (
     StreamingFlowPolicyDeterministic,
@@ -152,6 +161,16 @@ def _learning_rate_factor(
     return 0.5 * (1.0 + math.cos(math.pi * progress))
 
 
+def _training_loader_options(device: torch.device) -> dict[str, int | bool]:
+    """Use the reference PushT prefetch pipeline for CUDA training only."""
+    use_worker = device.type == "cuda"
+    return {
+        "num_workers": 1 if use_worker else 0,
+        "pin_memory": use_worker,
+        "persistent_workers": use_worker,
+    }
+
+
 def _materialize_validation_batches(
     dataset: PushTChunkDataset,
     batch_size: int,
@@ -260,14 +279,16 @@ def train_sfpd(
     stats = fit_pusht_stats(bank)
     save_pusht_stats(stats_path, stats, digest)
 
-    train_dataset = PushTChunkDataset(
-        bank,
-        split="train",
-        stats=stats,
-        transform=SFPDDrakeTransform(
-            config.sigma,
-            np.random.default_rng(seed_streams["train_transform"]),
-        ),
+    resolved_device = torch.device(device)
+    if resolved_device.type == "cuda" and not torch.cuda.is_available():
+        raise ValueError("CUDA was requested but is not available")
+    train_dataset = MaterializedPushTTrainingDataset(
+        PushTChunkDataset(
+            bank,
+            split="train",
+            stats=stats,
+            transform=None,
+        )
     )
     validation_dataset = PushTChunkDataset(
         bank,
@@ -290,13 +311,12 @@ def train_sfpd(
         train_dataset,
         batch_size=config.batch_size,
         shuffle=True,
-        num_workers=0,
         generator=shuffle_generator,
+        **_training_loader_options(resolved_device),
     )
-
-    resolved_device = torch.device(device)
-    if resolved_device.type == "cuda" and not torch.cuda.is_available():
-        raise ValueError("CUDA was requested but is not available")
+    target_generator = torch.Generator(device=resolved_device).manual_seed(
+        seed_streams["train_transform"]
+    )
     with torch.random.fork_rng(devices=[]):
         torch.manual_seed(seed_streams["model_initialization"])
         velocity_net = SFPDVelocityMLP(
@@ -337,6 +357,17 @@ def train_sfpd(
         except StopIteration:
             train_iterator = iter(train_loader)
             batch = next(train_iterator)
+
+        normalized_actions = batch["action"].to(
+            device=resolved_device,
+            non_blocking=resolved_device.type == "cuda",
+        )
+        targets = sample_sfpd_training_targets(
+            normalized_actions,
+            sigma=config.sigma,
+            generator=target_generator,
+        )
+        batch = {"obs": batch["obs"], **targets}
 
         policy.train()
         optimizer.zero_grad(set_to_none=True)
@@ -394,6 +425,12 @@ def train_sfpd(
         "drake_version": importlib.metadata.version("drake"),
         "numpy_version": importlib.metadata.version("numpy"),
         "torch_version": str(torch.__version__),
+        "trajectory_targets": {
+            "training": "torch_uniform_first_order_hold_float32",
+            "validation": (
+                "drake_first_order_hold_float64_boundary_float32_output"
+            ),
+        },
         "optimizer": {
             "name": "AdamW",
             "learning_rate": config.learning_rate,
@@ -445,15 +482,16 @@ def train_sfps(
     digest = train_data_digest(bank)
     stats = fit_pusht_stats(bank)
     save_pusht_stats(stats_path, stats, digest)
-    train_dataset = PushTChunkDataset(
-        bank,
-        split="train",
-        stats=stats,
-        transform=SFPSDrakeTransform(
-            config.sigma0,
-            config.sigma1,
-            np.random.default_rng(seed_streams["train_transform"]),
-        ),
+    resolved_device = torch.device(device)
+    if resolved_device.type == "cuda" and not torch.cuda.is_available():
+        raise ValueError("CUDA was requested but is not available")
+    train_dataset = MaterializedPushTTrainingDataset(
+        PushTChunkDataset(
+            bank,
+            split="train",
+            stats=stats,
+            transform=None,
+        )
     )
     validation_dataset = PushTChunkDataset(
         bank,
@@ -478,13 +516,12 @@ def train_sfps(
         train_dataset,
         batch_size=config.batch_size,
         shuffle=True,
-        num_workers=0,
         generator=shuffle_generator,
+        **_training_loader_options(resolved_device),
     )
-
-    resolved_device = torch.device(device)
-    if resolved_device.type == "cuda" and not torch.cuda.is_available():
-        raise ValueError("CUDA was requested but is not available")
+    target_generator = torch.Generator(device=resolved_device).manual_seed(
+        seed_streams["train_transform"]
+    )
     with torch.random.fork_rng(devices=[]):
         torch.manual_seed(seed_streams["model_initialization"])
         velocity_net = SFPSVelocityMLP(
@@ -526,6 +563,17 @@ def train_sfps(
         except StopIteration:
             train_iterator = iter(train_loader)
             batch = next(train_iterator)
+        normalized_actions = batch["action"].to(
+            device=resolved_device,
+            non_blocking=resolved_device.type == "cuda",
+        )
+        targets = sample_sfps_training_targets(
+            normalized_actions,
+            sigma0=config.sigma0,
+            sigma1=config.sigma1,
+            generator=target_generator,
+        )
+        batch = {"obs": batch["obs"], **targets}
         policy.train()
         optimizer.zero_grad(set_to_none=True)
         loss = policy.loss(batch)
@@ -578,6 +626,12 @@ def train_sfps(
         "drake_version": importlib.metadata.version("drake"),
         "numpy_version": importlib.metadata.version("numpy"),
         "torch_version": str(torch.__version__),
+        "trajectory_targets": {
+            "training": "torch_uniform_first_order_hold_float32",
+            "validation": (
+                "drake_first_order_hold_float64_boundary_float32_output"
+            ),
+        },
         "optimizer": {
             "name": "AdamW",
             "learning_rate": config.learning_rate,

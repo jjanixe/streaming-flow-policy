@@ -1,0 +1,28 @@
+........................................................................ [ 22%]
+........................................................................ [ 44%]
+..s..................................................................... [ 66%]
+........................................................................ [ 88%]
+............................s.........                                   [100%]
+=============================== warnings summary ===============================
+env/__init__.py:4
+  /home/janice9902/starlab/forked/streaming-flow-policy/.worktrees/stage-b2-sfps/env/__init__.py:4: DeprecationWarning: `np.bool8` is a deprecated alias for `np.bool_`.  (Deprecated NumPy 1.24)
+    if not hasattr(np, "bool8"):
+
+env/tests/test_environment.py::test_gym_registration_and_api
+  /home/janice9902/starlab/forked/streaming-flow-policy/.worktrees/stage-b2-sfps/.venv/lib/python3.10/site-packages/gym/utils/passive_env_checker.py:233: DeprecationWarning: `np.bool8` is a deprecated alias for `np.bool_`.  (Deprecated NumPy 1.24)
+    if not isinstance(terminated, (bool, np.bool8)):
+
+env/tests/test_environment.py::test_gym_registration_and_api
+  /home/janice9902/starlab/forked/streaming-flow-policy/.worktrees/stage-b2-sfps/.venv/lib/python3.10/site-packages/gym/utils/passive_env_checker.py:237: DeprecationWarning: `np.bool8` is a deprecated alias for `np.bool_`.  (Deprecated NumPy 1.24)
+    if not isinstance(truncated, (bool, np.bool8)):
+
+env/tests/test_models.py: 1 warning
+env/tests/test_preference_rollout.py: 1 warning
+env/tests/test_run_preference.py: 1 warning
+env/tests/test_run_stage_b.py: 2 warnings
+env/tests/test_train_stage_b.py: 5 warnings
+  /home/janice9902/starlab/forked/streaming-flow-policy/.worktrees/stage-b2-sfps/.venv/lib/python3.10/site-packages/torch/cuda/__init__.py:789: UserWarning: Can't initialize NVML
+    warnings.warn("Can't initialize NVML")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+324 passed, 2 skipped, 13 warnings in 76.84s (0:01:16)

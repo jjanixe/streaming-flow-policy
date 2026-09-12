@@ -1,0 +1,360 @@
+{
+  "replayed_episodes": 512,
+  "decisions_checked": 4096,
+  "feature_kind": "mode",
+  "all_checks_passed": true,
+  "conditions": {
+    "centered__upper_narrow_direction__soft__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 16,
+        "upper_wide": 0,
+        "lower_narrow": 0,
+        "lower_wide": 0,
+        "other": 0
+      }
+    },
+    "centered__upper_narrow_direction__best__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 16,
+        "upper_wide": 0,
+        "lower_narrow": 0,
+        "lower_wide": 0,
+        "other": 0
+      }
+    },
+    "centered__upper_narrow_width__soft__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 14,
+        "upper_wide": 0,
+        "lower_narrow": 2,
+        "lower_wide": 0,
+        "other": 0
+      }
+    },
+    "centered__upper_narrow_width__best__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 16,
+        "upper_wide": 0,
+        "lower_narrow": 0,
+        "lower_wide": 0,
+        "other": 0
+      }
+    },
+    "centered__upper_wide_direction__soft__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 16,
+        "upper_wide": 0,
+        "lower_narrow": 0,
+        "lower_wide": 0,
+        "other": 0
+      }
+    },
+    "centered__upper_wide_direction__best__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 16,
+        "upper_wide": 0,
+        "lower_narrow": 0,
+        "lower_wide": 0,
+        "other": 0
+      }
+    },
+    "centered__upper_wide_width__soft__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 13,
+        "upper_wide": 0,
+        "lower_narrow": 2,
+        "lower_wide": 0,
+        "other": 1
+      }
+    },
+    "centered__upper_wide_width__best__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 16,
+        "upper_wide": 0,
+        "lower_narrow": 0,
+        "lower_wide": 0,
+        "other": 0
+      }
+    },
+    "centered__lower_narrow_direction__soft__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 0,
+        "upper_wide": 0,
+        "lower_narrow": 16,
+        "lower_wide": 0,
+        "other": 0
+      }
+    },
+    "centered__lower_narrow_direction__best__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 0,
+        "upper_wide": 0,
+        "lower_narrow": 16,
+        "lower_wide": 0,
+        "other": 0
+      }
+    },
+    "centered__lower_narrow_width__soft__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 1,
+        "upper_wide": 0,
+        "lower_narrow": 15,
+        "lower_wide": 0,
+        "other": 0
+      }
+    },
+    "centered__lower_narrow_width__best__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 0,
+        "upper_wide": 0,
+        "lower_narrow": 16,
+        "lower_wide": 0,
+        "other": 0
+      }
+    },
+    "centered__lower_wide_direction__soft__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 0,
+        "upper_wide": 0,
+        "lower_narrow": 16,
+        "lower_wide": 0,
+        "other": 0
+      }
+    },
+    "centered__lower_wide_direction__best__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 0,
+        "upper_wide": 0,
+        "lower_narrow": 16,
+        "lower_wide": 0,
+        "other": 0
+      }
+    },
+    "centered__lower_wide_width__soft__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 1,
+        "upper_wide": 0,
+        "lower_narrow": 13,
+        "lower_wide": 0,
+        "other": 2
+      }
+    },
+    "centered__lower_wide_width__best__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 0,
+        "upper_wide": 0,
+        "lower_narrow": 16,
+        "lower_wide": 0,
+        "other": 0
+      }
+    },
+    "gaussian__upper_narrow_direction__soft__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 4,
+        "lower_narrow": 3,
+        "lower_wide": 6,
+        "other": 0
+      }
+    },
+    "gaussian__upper_narrow_direction__best__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 4,
+        "lower_narrow": 3,
+        "lower_wide": 6,
+        "other": 0
+      }
+    },
+    "gaussian__upper_narrow_width__soft__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 4,
+        "lower_narrow": 3,
+        "lower_wide": 6,
+        "other": 0
+      }
+    },
+    "gaussian__upper_narrow_width__best__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 4,
+        "lower_narrow": 3,
+        "lower_wide": 6,
+        "other": 0
+      }
+    },
+    "gaussian__upper_wide_direction__soft__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 1,
+        "upper_wide": 6,
+        "lower_narrow": 0,
+        "lower_wide": 9,
+        "other": 0
+      }
+    },
+    "gaussian__upper_wide_direction__best__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 1,
+        "upper_wide": 6,
+        "lower_narrow": 0,
+        "lower_wide": 9,
+        "other": 0
+      }
+    },
+    "gaussian__upper_wide_width__soft__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 1,
+        "upper_wide": 6,
+        "lower_narrow": 0,
+        "lower_wide": 9,
+        "other": 0
+      }
+    },
+    "gaussian__upper_wide_width__best__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 1,
+        "upper_wide": 6,
+        "lower_narrow": 0,
+        "lower_wide": 9,
+        "other": 0
+      }
+    },
+    "gaussian__lower_narrow_direction__soft__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 4,
+        "lower_narrow": 3,
+        "lower_wide": 6,
+        "other": 0
+      }
+    },
+    "gaussian__lower_narrow_direction__best__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 4,
+        "lower_narrow": 3,
+        "lower_wide": 6,
+        "other": 0
+      }
+    },
+    "gaussian__lower_narrow_width__soft__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 4,
+        "lower_narrow": 3,
+        "lower_wide": 6,
+        "other": 0
+      }
+    },
+    "gaussian__lower_narrow_width__best__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 4,
+        "lower_narrow": 3,
+        "lower_wide": 6,
+        "other": 0
+      }
+    },
+    "gaussian__lower_wide_direction__soft__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 1,
+        "upper_wide": 6,
+        "lower_narrow": 0,
+        "lower_wide": 9,
+        "other": 0
+      }
+    },
+    "gaussian__lower_wide_direction__best__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 1,
+        "upper_wide": 6,
+        "lower_narrow": 0,
+        "lower_wide": 9,
+        "other": 0
+      }
+    },
+    "gaussian__lower_wide_width__soft__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 1,
+        "upper_wide": 6,
+        "lower_narrow": 0,
+        "lower_wide": 9,
+        "other": 0
+      }
+    },
+    "gaussian__lower_wide_width__best__m32": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 1,
+        "upper_wide": 6,
+        "lower_narrow": 0,
+        "lower_wide": 9,
+        "other": 0
+      }
+    }
+  }
+}

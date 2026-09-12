@@ -1,0 +1,211 @@
+{
+  "condition_key": "centered__upper_wide_width__soft__m128",
+  "config_digest": "9babe201788a9821bcc40aa08c8b09250ca732c73884aa87a55a01c7f507c5d4",
+  "source_digest": "e1cb0fc1ba4f6285d0ae658cc48d970ef5e3bb7a4d6ca514aa26b800f1eaffd0",
+  "checkpoint_digest": "4228d9dae9baedc8b64d66ffb4d768798731f2c6788efea681dc18d745e2abba",
+  "stats_digest": "9d9774633654f63c92a2f11d0768eae6f2b81d920a835da90a7d7cf3c8cc440b",
+  "train_data_digest": "3fb4d5e8f79027bf1c113c8a85d48b82e30e43e707b8c895be96b9ab49d82e78",
+  "artifact": "centered__upper_wide_width__soft__m128.npz",
+  "artifact_digest": "88a78d0e07ec209207de46c4888cd3a3b991d12a5c54323be2181e3f8e9abf17",
+  "artifact_fields": [
+    "action_limit_failure",
+    "batch_replan_seconds",
+    "candidate_scores",
+    "checkpoint_digest",
+    "condition_key",
+    "config_digest",
+    "continuation_action_limit_failure",
+    "continuation_features",
+    "continuation_goal_errors",
+    "continuation_lengths",
+    "continuation_model_anchors",
+    "continuation_numerical_failure",
+    "continuation_positions",
+    "continuation_requested_actions",
+    "continuation_success",
+    "current_commands",
+    "current_latents",
+    "current_seeds",
+    "current_valid",
+    "decision_mask",
+    "environment_seeds",
+    "ess",
+    "expected_features",
+    "expected_utility",
+    "fallback",
+    "future_failure_fractions",
+    "future_latents",
+    "future_seeds",
+    "goal_costs",
+    "goal_errors",
+    "lengths",
+    "model_anchors",
+    "numerical_failure",
+    "observed_anchors",
+    "positions",
+    "requested_actions",
+    "rollout_seeds",
+    "selected_current_latents",
+    "selected_current_valid",
+    "selected_indices",
+    "selection_seeds",
+    "source_digest",
+    "stats_digest",
+    "success",
+    "train_data_digest"
+  ],
+  "record_digest": "f1ca9517d4685bc4e341c420e0e8effb590714f8f33776d4d21696fe3a183ac0",
+  "record": {
+    "count": 16,
+    "success_count": 16,
+    "success_rate": 1.0,
+    "success_wilson_95": [
+      0.8063865817272802,
+      1.0
+    ],
+    "complete_count": 16,
+    "incomplete_count": 0,
+    "numerical_failure_count": 0,
+    "action_limit_failure_count": 0,
+    "mean_goal_error": 0.010532252723351121,
+    "midpoint_denominator": 16,
+    "midpoint_counts": {
+      "upper_narrow": 11,
+      "upper_wide": 0,
+      "lower_narrow": 3,
+      "lower_wide": 0,
+      "other": 2
+    },
+    "successful_midpoint_counts": {
+      "upper_narrow": 11,
+      "upper_wide": 0,
+      "lower_narrow": 3,
+      "lower_wide": 0,
+      "other": 2
+    },
+    "decision_count": 128,
+    "fallback_count": 0,
+    "mean_ess": 114.1275642501989,
+    "mean_valid_candidate_fraction": 1.0,
+    "mean_expected_continuation_failure_fraction": 0.0,
+    "mean_valid_current_continuation_failure_fraction": 0.0,
+    "mean_selected_continuation_failure_fraction": 0.0,
+    "selected_continuation_denominator": 128,
+    "batch_replan_latency_p50_seconds": 1.7610035939724185,
+    "batch_replan_latency_p95_seconds": 2.9409073548653395,
+    "utility_by_user": {
+      "upper_narrow_direction": {
+        "all_count": 16,
+        "all_mean": 0.6675,
+        "all_standard_error": 0.09091891992319313,
+        "successful_count": 16,
+        "successful_mean": 0.6675,
+        "successful_standard_error": 0.09091891992319313
+      },
+      "upper_narrow_width": {
+        "all_count": 16,
+        "all_mean": 0.7575000000000001,
+        "all_standard_error": 0.07560588601425157,
+        "successful_count": 16,
+        "successful_mean": 0.7575000000000001,
+        "successful_standard_error": 0.07560588601425157
+      },
+      "upper_wide_direction": {
+        "all_count": 16,
+        "all_mean": 0.5275000000000001,
+        "all_standard_error": 0.08168792240390661,
+        "successful_count": 16,
+        "successful_mean": 0.5275000000000001,
+        "successful_standard_error": 0.08168792240390661
+      },
+      "upper_wide_width": {
+        "all_count": 16,
+        "all_mean": 0.1975,
+        "all_standard_error": 0.024958298553119897,
+        "successful_count": 16,
+        "successful_mean": 0.1975,
+        "successful_standard_error": 0.024958298553119897
+      },
+      "lower_narrow_direction": {
+        "all_count": 16,
+        "all_mean": 0.34750000000000003,
+        "all_standard_error": 0.07192299122441077,
+        "successful_count": 16,
+        "successful_mean": 0.34750000000000003,
+        "successful_standard_error": 0.07192299122441077
+      },
+      "lower_narrow_width": {
+        "all_count": 16,
+        "all_mean": 0.6775,
+        "all_standard_error": 0.06799203384711086,
+        "successful_count": 16,
+        "successful_mean": 0.6775,
+        "successful_standard_error": 0.06799203384711086
+      },
+      "lower_wide_direction": {
+        "all_count": 16,
+        "all_mean": 0.20750000000000002,
+        "all_standard_error": 0.06658015219768326,
+        "successful_count": 16,
+        "successful_mean": 0.20750000000000002,
+        "successful_standard_error": 0.06658015219768326
+      },
+      "lower_wide_width": {
+        "all_count": 16,
+        "all_mean": 0.1175,
+        "all_standard_error": 0.019568256607747834,
+        "successful_count": 16,
+        "successful_mean": 0.1175,
+        "successful_standard_error": 0.019568256607747834
+      }
+    },
+    "target_mode": "upper_wide",
+    "successful_target_count": 0,
+    "successful_target_rate": 0.0,
+    "successful_target_wilson_95": [
+      0.0,
+      0.19361341827271994
+    ],
+    "mode_denominator": 16,
+    "mode_counts": {
+      "upper_narrow": 11,
+      "upper_wide": 0,
+      "lower_narrow": 3,
+      "lower_wide": 0,
+      "other": 2
+    },
+    "successful_mode_denominator": 16,
+    "successful_mode_counts": {
+      "upper_narrow": 11,
+      "upper_wide": 0,
+      "lower_narrow": 3,
+      "lower_wide": 0,
+      "other": 2
+    },
+    "artifact": "centered__upper_wide_width__soft__m128.npz",
+    "completion_marker": "centered__upper_wide_width__soft__m128.complete.json",
+    "regime": "centered",
+    "profile": "upper_wide_width",
+    "method": "soft",
+    "M": 128,
+    "preference": {
+      "weights": [
+        [
+          0.9,
+          0.09999999999999998
+        ],
+        [
+          0.9,
+          0.09999999999999998
+        ]
+      ],
+      "alpha": [
+        0.2,
+        0.8
+      ]
+    },
+    "proposal_std": 1.0,
+    "task_failure_count": 0,
+    "elapsed_seconds": 14.169793808017857
+  }
+}

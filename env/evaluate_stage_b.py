@@ -696,6 +696,297 @@ def rollout_sfps(
         environment.close()
 
 
+@dataclass
+class _BatchedSFPSState:
+    environment_seed: int
+    latent_seed: int
+    environment: PointReach2DPreferenceEnv
+    latent_generator: torch.Generator
+    initial_observation: np.ndarray
+    observation_history: deque[np.ndarray]
+    executed_positions: list[np.ndarray]
+    requested_actions: list[np.ndarray]
+    predicted_chunks: list[np.ndarray]
+    chunk_latents: list[np.ndarray]
+    normalized_anchor_discrepancies: list[np.float32]
+    physical_anchor_discrepancies: list[np.float32]
+    policy_generation_nonfinite_chunk_indices: list[int]
+    policy_generation_exception_chunk_indices: list[int]
+    info: dict[str, Any]
+    terminated: bool = False
+    truncated: bool = False
+
+
+def _record_batched_sfps_exception(state: _BatchedSFPSState) -> None:
+    failed_chunk_index = len(state.predicted_chunks)
+    state.predicted_chunks.append(np.full((9, 2), np.nan, dtype=np.float32))
+    state.normalized_anchor_discrepancies.append(np.float32(np.nan))
+    state.physical_anchor_discrepancies.append(np.float32(np.nan))
+    state.policy_generation_nonfinite_chunk_indices.append(failed_chunk_index)
+    state.policy_generation_exception_chunk_indices.append(failed_chunk_index)
+    state.terminated = True
+
+
+def _execute_batched_sfps_chunk(
+    state: _BatchedSFPSState,
+    normalized_observations: np.ndarray,
+    normalized_chunk: np.ndarray,
+    stats: PushTStats,
+) -> None:
+    physical_chunk = unnormalize_actions(normalized_chunk, stats)
+    state.predicted_chunks.append(physical_chunk.copy())
+    if not (
+        np.isfinite(normalized_chunk).all()
+        and np.isfinite(physical_chunk).all()
+    ):
+        state.policy_generation_nonfinite_chunk_indices.append(
+            len(state.predicted_chunks) - 1
+        )
+    state.normalized_anchor_discrepancies.append(
+        np.float32(
+            np.linalg.norm(
+                normalized_chunk[0] - normalized_observations[-1, :2]
+            )
+        )
+    )
+    raw_observations = np.stack(state.observation_history).astype(
+        np.float32,
+        copy=False,
+    )
+    state.physical_anchor_discrepancies.append(
+        np.float32(
+            np.linalg.norm(physical_chunk[0] - raw_observations[-1, :2])
+        )
+    )
+    for action in physical_chunk[1:]:
+        state.requested_actions.append(action.copy())
+        observation, _, state.terminated, state.truncated, state.info = (
+            state.environment.step(action)
+        )
+        state.executed_positions.append(observation[:2].copy())
+        state.observation_history.append(observation.copy())
+        if state.terminated or state.truncated:
+            break
+
+
+def _finalize_batched_sfps_state(state: _BatchedSFPSState) -> SFPSRollout:
+    gym_numerical_failure = bool(state.info["numerical_failure"])
+    policy_generation_numerical_failure = bool(
+        state.policy_generation_nonfinite_chunk_indices
+    )
+    numerical_failure = (
+        gym_numerical_failure or policy_generation_numerical_failure
+    )
+    success = bool(state.info["success"]) and not numerical_failure
+    latent_array = np.asarray(state.chunk_latents, dtype=np.float32).reshape(-1, 2)
+    final_info = dict(state.info)
+    final_info.update(
+        terminated=bool(state.terminated),
+        truncated=bool(state.truncated),
+        success=success,
+        numerical_failure=numerical_failure,
+        gym_numerical_failure=gym_numerical_failure,
+        policy_generation_numerical_failure=policy_generation_numerical_failure,
+        policy_generation_nonfinite_chunk_indices=list(
+            state.policy_generation_nonfinite_chunk_indices
+        ),
+        policy_generation_exception_chunk_indices=list(
+            state.policy_generation_exception_chunk_indices
+        ),
+        normalized_anchor_discrepancies=np.asarray(
+            state.normalized_anchor_discrepancies,
+            dtype=np.float32,
+        ),
+        physical_anchor_discrepancies=np.asarray(
+            state.physical_anchor_discrepancies,
+            dtype=np.float32,
+        ),
+        environment_seed=state.environment_seed,
+        latent_seed=state.latent_seed,
+        chunk_latents=latent_array.copy(),
+    )
+    return SFPSRollout(
+        seed=state.environment_seed,
+        initial_observation=state.initial_observation.astype(
+            np.float32,
+            copy=False,
+        ),
+        executed_positions=np.asarray(
+            state.executed_positions,
+            dtype=np.float32,
+        ).reshape(-1, 2),
+        requested_actions=np.asarray(
+            state.requested_actions,
+            dtype=np.float32,
+        ).reshape(-1, 2),
+        raw_predicted_chunks=np.asarray(
+            state.predicted_chunks,
+            dtype=np.float32,
+        ).reshape(-1, 9, 2),
+        executed_action_count=len(state.requested_actions),
+        success=success,
+        numerical_failure=numerical_failure,
+        action_limit_failure=bool(state.info["action_limit_failure"]),
+        info=final_info,
+        latent_seed=state.latent_seed,
+        chunk_latents=latent_array,
+    )
+
+
+def _rollout_sfps_batched(
+    policy: object,
+    stats: PushTStats,
+    environment_config: EnvironmentConfig,
+    environment_seeds: Sequence[int],
+    latent_seeds: Sequence[int],
+    *,
+    center_init: bool,
+    integration_steps_per_action: int,
+) -> SFPSRolloutBatch:
+    """Run active SFPS rollouts through one joint ODE solve per chunk."""
+    from env.sfp_policies import PolicyNumericalError
+
+    device = _policy_device(policy)
+    states: list[_BatchedSFPSState] = []
+    try:
+        for environment_seed, latent_seed in zip(environment_seeds, latent_seeds):
+            environment = PointReach2DPreferenceEnv(config=environment_config)
+            observation, info = environment.reset(
+                seed=environment_seed,
+                options={"center_init": center_init},
+            )
+            states.append(
+                _BatchedSFPSState(
+                    environment_seed=environment_seed,
+                    latent_seed=latent_seed,
+                    environment=environment,
+                    latent_generator=torch.Generator(device=device).manual_seed(
+                        latent_seed
+                    ),
+                    initial_observation=observation.copy(),
+                    observation_history=deque(
+                        (observation.copy(), observation.copy()),
+                        maxlen=2,
+                    ),
+                    executed_positions=[observation[:2].copy()],
+                    requested_actions=[],
+                    predicted_chunks=[],
+                    chunk_latents=[],
+                    normalized_anchor_discrepancies=[],
+                    physical_anchor_discrepancies=[],
+                    policy_generation_nonfinite_chunk_indices=[],
+                    policy_generation_exception_chunk_indices=[],
+                    info=info,
+                )
+            )
+
+        while True:
+            active = [
+                state for state in states if not (state.terminated or state.truncated)
+            ]
+            if not active:
+                break
+            normalized_observations = [
+                normalize_observations(
+                    np.stack(state.observation_history).astype(
+                        np.float32,
+                        copy=False,
+                    ),
+                    stats,
+                )
+                for state in active
+            ]
+            nobs = torch.from_numpy(
+                np.stack(normalized_observations).astype(np.float32, copy=False)
+            ).to(device=device)
+            latent_tensors = [
+                policy.sample_latent(state.latent_generator) for state in active
+            ]
+            for state, latent in zip(active, latent_tensors):
+                if (
+                    not isinstance(latent, torch.Tensor)
+                    or latent.shape != (2,)
+                    or latent.dtype != torch.float32
+                    or latent.device != device
+                    or not torch.isfinite(latent).all()
+                ):
+                    raise ValueError(
+                        "policy latent must be a finite float32 tensor [2]"
+                    )
+                state.chunk_latents.append(
+                    latent.detach().to(device="cpu").numpy().copy()
+                )
+            latents = torch.stack(latent_tensors)
+            try:
+                normalized_prediction = policy.predict_batch(
+                    nobs,
+                    num_actions=9,
+                    integration_steps_per_action=integration_steps_per_action,
+                    latents=latents,
+                )
+            except PolicyNumericalError:
+                individual_predictions: list[torch.Tensor | None] = []
+                for state, observation, latent in zip(
+                    active,
+                    normalized_observations,
+                    latent_tensors,
+                ):
+                    try:
+                        individual_predictions.append(
+                            policy.predict(
+                                torch.from_numpy(observation).to(device=device),
+                                num_actions=9,
+                                integration_steps_per_action=(
+                                    integration_steps_per_action
+                                ),
+                                latent=latent,
+                            )
+                        )
+                    except PolicyNumericalError:
+                        _record_batched_sfps_exception(state)
+                        individual_predictions.append(None)
+                for state, observation, prediction in zip(
+                    active,
+                    normalized_observations,
+                    individual_predictions,
+                ):
+                    if prediction is None:
+                        continue
+                    if prediction.shape != (1, 9, 2):
+                        raise ValueError(
+                            "individual fallback prediction must have shape [1, 9, 2]"
+                        )
+                    chunk = prediction[0].detach().to(device="cpu").numpy().copy()
+                    _execute_batched_sfps_chunk(state, observation, chunk, stats)
+                continue
+
+            if not isinstance(normalized_prediction, torch.Tensor):
+                raise ValueError("policy batch prediction must be a torch.Tensor")
+            expected_shape = (len(active), 9, 2)
+            if normalized_prediction.shape != expected_shape:
+                raise ValueError(
+                    f"policy batch prediction must have shape {expected_shape}"
+                )
+            if normalized_prediction.dtype != torch.float32:
+                raise ValueError("policy batch prediction must have dtype float32")
+            normalized_chunks = (
+                normalized_prediction.detach().to(device="cpu").numpy().copy()
+            )
+            for state, observation, chunk in zip(
+                active,
+                normalized_observations,
+                normalized_chunks,
+            ):
+                _execute_batched_sfps_chunk(state, observation, chunk, stats)
+
+        return SFPSRolloutBatch.from_rollouts(
+            [_finalize_batched_sfps_state(state) for state in states]
+        )
+    finally:
+        for state in states:
+            state.environment.close()
+
+
 def _discrepancy_values(
     batch: SFPDRolloutBatch,
     key: str,
@@ -909,23 +1200,38 @@ def evaluate_sfps(
         raise ValueError("at least one environment seed is required")
     if len(environment_seeds) != len(latent_seeds):
         raise ValueError("environment_seeds and latent_seeds must have equal length")
-    batch = SFPSRolloutBatch.from_rollouts(
-        [
-            rollout_sfps(
-                policy,
-                stats,
-                environment_config,
-                environment_seed=environment_seed,
-                latent_seed=latent_seed,
-                center_init=center_init,
-                integration_steps_per_action=integration_steps_per_action,
-            )
-            for environment_seed, latent_seed in zip(
-                environment_seeds,
-                latent_seeds,
-            )
-        ]
-    )
+    if any(type(seed) is not int or seed < 0 for seed in environment_seeds):
+        raise ValueError("environment_seed must be a nonnegative integer")
+    if any(type(seed) is not int or seed < 0 for seed in latent_seeds):
+        raise ValueError("latent_seed must be a nonnegative integer")
+    if callable(getattr(policy, "predict_batch", None)):
+        batch = _rollout_sfps_batched(
+            policy,
+            stats,
+            environment_config,
+            environment_seeds,
+            latent_seeds,
+            center_init=center_init,
+            integration_steps_per_action=integration_steps_per_action,
+        )
+    else:
+        batch = SFPSRolloutBatch.from_rollouts(
+            [
+                rollout_sfps(
+                    policy,
+                    stats,
+                    environment_config,
+                    environment_seed=environment_seed,
+                    latent_seed=latent_seed,
+                    center_init=center_init,
+                    integration_steps_per_action=integration_steps_per_action,
+                )
+                for environment_seed, latent_seed in zip(
+                    environment_seeds,
+                    latent_seeds,
+                )
+            ]
+        )
     metrics = aggregate_sfpd_metrics(batch, environment_config)
     unique_raw = len(
         {rollout.raw_predicted_chunks.tobytes() for rollout in batch.rollouts}

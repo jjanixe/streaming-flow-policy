@@ -1,0 +1,211 @@
+{
+  "condition_key": "centered__upper_wide_width__soft__m32",
+  "config_digest": "5395686864783a7525ddbc7a3b39ba2521babdc76059c894ad7ac5346493ca94",
+  "source_digest": "e1cb0fc1ba4f6285d0ae658cc48d970ef5e3bb7a4d6ca514aa26b800f1eaffd0",
+  "checkpoint_digest": "4228d9dae9baedc8b64d66ffb4d768798731f2c6788efea681dc18d745e2abba",
+  "stats_digest": "9d9774633654f63c92a2f11d0768eae6f2b81d920a835da90a7d7cf3c8cc440b",
+  "train_data_digest": "3fb4d5e8f79027bf1c113c8a85d48b82e30e43e707b8c895be96b9ab49d82e78",
+  "artifact": "centered__upper_wide_width__soft__m32.npz",
+  "artifact_digest": "a024fd11aac1abb12f79d5e1d3b28ea5bbf0eb6cc2085bf4920619a4e23bd745",
+  "artifact_fields": [
+    "action_limit_failure",
+    "batch_replan_seconds",
+    "candidate_scores",
+    "checkpoint_digest",
+    "condition_key",
+    "config_digest",
+    "continuation_action_limit_failure",
+    "continuation_features",
+    "continuation_goal_errors",
+    "continuation_lengths",
+    "continuation_model_anchors",
+    "continuation_numerical_failure",
+    "continuation_positions",
+    "continuation_requested_actions",
+    "continuation_success",
+    "current_commands",
+    "current_latents",
+    "current_seeds",
+    "current_valid",
+    "decision_mask",
+    "environment_seeds",
+    "ess",
+    "expected_features",
+    "expected_utility",
+    "fallback",
+    "future_failure_fractions",
+    "future_latents",
+    "future_seeds",
+    "goal_costs",
+    "goal_errors",
+    "lengths",
+    "model_anchors",
+    "numerical_failure",
+    "observed_anchors",
+    "positions",
+    "requested_actions",
+    "rollout_seeds",
+    "selected_current_latents",
+    "selected_current_valid",
+    "selected_indices",
+    "selection_seeds",
+    "source_digest",
+    "stats_digest",
+    "success",
+    "train_data_digest"
+  ],
+  "record_digest": "d52ca2814d12eb2c2b366adda75683c38517cbeb364af9f9d9c08db987fba5e3",
+  "record": {
+    "count": 16,
+    "success_count": 16,
+    "success_rate": 1.0,
+    "success_wilson_95": [
+      0.8063865817272802,
+      1.0
+    ],
+    "complete_count": 16,
+    "incomplete_count": 0,
+    "numerical_failure_count": 0,
+    "action_limit_failure_count": 0,
+    "mean_goal_error": 0.01131593799800612,
+    "midpoint_denominator": 16,
+    "midpoint_counts": {
+      "upper_narrow": 13,
+      "upper_wide": 0,
+      "lower_narrow": 2,
+      "lower_wide": 0,
+      "other": 1
+    },
+    "successful_midpoint_counts": {
+      "upper_narrow": 13,
+      "upper_wide": 0,
+      "lower_narrow": 2,
+      "lower_wide": 0,
+      "other": 1
+    },
+    "decision_count": 128,
+    "fallback_count": 0,
+    "mean_ess": 28.577809039999302,
+    "mean_valid_candidate_fraction": 1.0,
+    "mean_expected_continuation_failure_fraction": 0.0,
+    "mean_valid_current_continuation_failure_fraction": 0.0,
+    "mean_selected_continuation_failure_fraction": 0.0,
+    "selected_continuation_denominator": 128,
+    "batch_replan_latency_p50_seconds": 2.0318653135327622,
+    "batch_replan_latency_p95_seconds": 3.430352531926473,
+    "utility_by_user": {
+      "upper_narrow_direction": {
+        "all_count": 16,
+        "all_mean": 0.7637500000000002,
+        "all_standard_error": 0.07450321581426314,
+        "successful_count": 16,
+        "successful_mean": 0.7637500000000002,
+        "successful_standard_error": 0.07450321581426314
+      },
+      "upper_narrow_width": {
+        "all_count": 16,
+        "all_mean": 0.8237500000000001,
+        "all_standard_error": 0.05657498711150244,
+        "successful_count": 16,
+        "successful_mean": 0.8237500000000001,
+        "successful_standard_error": 0.05657498711150244
+      },
+      "upper_wide_direction": {
+        "all_count": 16,
+        "all_mean": 0.61375,
+        "all_standard_error": 0.06806170607128016,
+        "successful_count": 16,
+        "successful_mean": 0.61375,
+        "successful_standard_error": 0.06806170607128016
+      },
+      "upper_wide_width": {
+        "all_count": 16,
+        "all_mean": 0.22375,
+        "all_standard_error": 0.02018404898263313,
+        "successful_count": 16,
+        "successful_mean": 0.22375,
+        "successful_standard_error": 0.02018404898263313
+      },
+      "lower_narrow_direction": {
+        "all_count": 16,
+        "all_mean": 0.32375000000000004,
+        "all_standard_error": 0.05851548940237963,
+        "successful_count": 16,
+        "successful_mean": 0.32375000000000004,
+        "successful_standard_error": 0.05851548940237963
+      },
+      "lower_narrow_width": {
+        "all_count": 16,
+        "all_mean": 0.7137500000000001,
+        "all_standard_error": 0.049488003596831434,
+        "successful_count": 16,
+        "successful_mean": 0.7137500000000001,
+        "successful_standard_error": 0.049488003596831434
+      },
+      "lower_wide_direction": {
+        "all_count": 16,
+        "all_mean": 0.17375000000000002,
+        "all_standard_error": 0.05560931426778553,
+        "successful_count": 16,
+        "successful_mean": 0.17375000000000002,
+        "successful_standard_error": 0.05560931426778553
+      },
+      "lower_wide_width": {
+        "all_count": 16,
+        "all_mean": 0.11374999999999999,
+        "all_standard_error": 0.015569066553051064,
+        "successful_count": 16,
+        "successful_mean": 0.11374999999999999,
+        "successful_standard_error": 0.015569066553051064
+      }
+    },
+    "target_mode": "upper_wide",
+    "successful_target_count": 0,
+    "successful_target_rate": 0.0,
+    "successful_target_wilson_95": [
+      0.0,
+      0.19361341827271994
+    ],
+    "mode_denominator": 16,
+    "mode_counts": {
+      "upper_narrow": 13,
+      "upper_wide": 0,
+      "lower_narrow": 2,
+      "lower_wide": 0,
+      "other": 1
+    },
+    "successful_mode_denominator": 16,
+    "successful_mode_counts": {
+      "upper_narrow": 13,
+      "upper_wide": 0,
+      "lower_narrow": 2,
+      "lower_wide": 0,
+      "other": 1
+    },
+    "artifact": "centered__upper_wide_width__soft__m32.npz",
+    "completion_marker": "centered__upper_wide_width__soft__m32.complete.json",
+    "regime": "centered",
+    "profile": "upper_wide_width",
+    "method": "soft",
+    "M": 32,
+    "preference": {
+      "weights": [
+        [
+          0.9,
+          0.09999999999999998
+        ],
+        [
+          0.9,
+          0.09999999999999998
+        ]
+      ],
+      "alpha": [
+        0.2,
+        0.8
+      ]
+    },
+    "proposal_std": 1.0,
+    "task_failure_count": 0,
+    "elapsed_seconds": 16.319839294999838
+  }
+}

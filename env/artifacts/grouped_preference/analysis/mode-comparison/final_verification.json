@@ -1,0 +1,141 @@
+{
+  "note": "Final verified source snapshot, not a retroactive claim that every source file was hashed at launch. Task1/task2 before/after snapshots are retained in the SDD workspace; formal ablations contain launch-time source/config hashes.",
+  "main_runs": {
+    "mode-aligned-soft-M8-std1": {
+      "conditions": 36,
+      "episodes": 576,
+      "decisions": 4608,
+      "audit_pass": true,
+      "frozen_file_hashes_match": true
+    },
+    "mode-aligned-best-M8-std1": {
+      "conditions": 36,
+      "episodes": 576,
+      "decisions": 4608,
+      "audit_pass": true,
+      "frozen_file_hashes_match": true
+    },
+    "mode-aligned-best-M128-std8": {
+      "conditions": 36,
+      "episodes": 576,
+      "decisions": 4608,
+      "audit_pass": true,
+      "frozen_file_hashes_match": true
+    },
+    "mode-aligned-ablation-M32-std1": {
+      "conditions": 32,
+      "episodes": 512,
+      "decisions": 4096,
+      "audit_pass": true,
+      "frozen_file_hashes_match": true
+    },
+    "mode-aligned-ablation-M128-std1": {
+      "conditions": 32,
+      "episodes": 512,
+      "decisions": 4096,
+      "audit_pass": true,
+      "frozen_file_hashes_match": true
+    }
+  },
+  "total_conditions_episodes_decisions": [
+    172,
+    2752,
+    22016
+  ],
+  "primary_target_counts": {
+    "centered__upper_narrow_direction__oracle_best": 16,
+    "centered__upper_narrow_direction__learned_20": 16,
+    "centered__upper_narrow_width__oracle_best": 16,
+    "centered__upper_narrow_width__learned_20": 16,
+    "centered__upper_wide_direction__oracle_best": 16,
+    "centered__upper_wide_direction__learned_20": 16,
+    "centered__upper_wide_width__oracle_best": 16,
+    "centered__upper_wide_width__learned_20": 16,
+    "centered__lower_narrow_direction__oracle_best": 16,
+    "centered__lower_narrow_direction__learned_20": 16,
+    "centered__lower_narrow_width__oracle_best": 16,
+    "centered__lower_narrow_width__learned_20": 16,
+    "centered__lower_wide_direction__oracle_best": 16,
+    "centered__lower_wide_direction__learned_20": 16,
+    "centered__lower_wide_width__oracle_best": 16,
+    "centered__lower_wide_width__learned_20": 16,
+    "gaussian__upper_narrow_direction__oracle_best": 16,
+    "gaussian__upper_narrow_direction__learned_20": 16,
+    "gaussian__upper_narrow_width__oracle_best": 16,
+    "gaussian__upper_narrow_width__learned_20": 16,
+    "gaussian__upper_wide_direction__oracle_best": 13,
+    "gaussian__upper_wide_direction__learned_20": 13,
+    "gaussian__upper_wide_width__oracle_best": 12,
+    "gaussian__upper_wide_width__learned_20": 12,
+    "gaussian__lower_narrow_direction__oracle_best": 16,
+    "gaussian__lower_narrow_direction__learned_20": 16,
+    "gaussian__lower_narrow_width__oracle_best": 16,
+    "gaussian__lower_narrow_width__learned_20": 16,
+    "gaussian__lower_wide_direction__oracle_best": 15,
+    "gaussian__lower_wide_direction__learned_20": 15,
+    "gaussian__lower_wide_width__oracle_best": 15,
+    "gaussian__lower_wide_width__learned_20": 15
+  },
+  "gifs": {
+    "gaussian_mode_aligned_inference.gif": {
+      "frames": 65,
+      "size": [
+        1600,
+        900
+      ],
+      "sha256": "5217012b1893afb0317607c36fc4244646438d71d0c5c199bda46d04177f3d6f"
+    },
+    "centered_mode_aligned_inference.gif": {
+      "frames": 65,
+      "size": [
+        1600,
+        900
+      ],
+      "sha256": "e777567593473747ef45e91d2d497367899e8f29a8f184462882fb726426d8de"
+    }
+  },
+  "source_sha256": {
+    "env/__init__.py": "d7d8cb3858b3066b6af12c1a074cf7e450e2538b90c231b61614f796667135a6",
+    "env/analytic_fields.py": "037e926c237a4b9d72cdcf391e0535e60f241aa742a5ccbe97b2b6f9ebef4b28",
+    "env/artifacts/grouped_preference/analysis/audit_mode_inference.py": "ce36709067399f09e2482acad8113c3ed8851d3bac0f0f4e24e72288e8568e4b",
+    "env/artifacts/grouped_preference/analysis/mode_fit_replicates.py": "ccea0e5077e0878db32526d8be50a66c2bb6dcd5e97967564bf22785ad460eb3",
+    "env/artifacts/grouped_preference/analysis/mode_initial_coverage.py": "6128cce47a83c771652528313310514e684983d1e989d775f661cf1cd246e9f0",
+    "env/artifacts/grouped_preference/analysis/mode_selection_diagnosis.py": "59a78a25492fcfbb457df1b1e767166c52b9fb86cc64c520e4e1ac842de373fc",
+    "env/artifacts/grouped_preference/analysis/plot_mode_fits.py": "4370e86b270c9c50f78b59ec9cb422dc1564b49df3f8d2c62a5099e921bfad46",
+    "env/artifacts/grouped_preference/analysis/render_mode_inference.py": "38edb86e8b2012506f8ae6430fab0c57580546e7b81e02a4728518d12106b05c",
+    "env/artifacts/grouped_preference/analysis/summarize_mode_experiments.py": "272526306cb4a54318edeaa095a82b8e6d1ceeac771f7e7b0b033c0d562a989b",
+    "env/artifacts/grouped_preference/analysis/two_chunk_probe.py": "228cc2cb5f418748fbfa60b118fa78cbc8def3a50d53ee7f38690999c3b1191b",
+    "env/artifacts.py": "391ae20f448031aa779008c60e2510d9e8a3db99bc5b0ebf654ab7136217da70",
+    "env/chunk_data.py": "c3d6c30474b9b0c5ae47db664fdac90bcb15ef26430c51edf81a28203a7257fd",
+    "env/config.py": "e006c7a85cdd253694d622cb602ce597d606b51a3e4e411d4a71e1bd772975aa",
+    "env/demonstrations.py": "66ac8a25d95a49912c74ebd71161ef699c995d7e0a4c5990f23e57aeb16bf002",
+    "env/drake_trajectory.py": "2f71da62085d56311acb9bd57f1a3af5be902c2af8e4e9b3ae3e31e18fa524b5",
+    "env/environment.py": "c9f8e94a0400f61e0fea5b3fb3390aab240ca050572da6d0b8d05cc6c57e0c78",
+    "env/evaluate_stage_b.py": "1002faf218bc077a1144545951338f81bd41980dee670259f6bbd60b059bac0b",
+    "env/features.py": "23d59cab6f4d3faf70d3fb00f53125e690b6ea1b47f61817d2bf35a5892b48c5",
+    "env/grouped_preference.py": "18efc1654f05df4c80573095020c1a454666dc7968b387c5e5f59ab8263f04b2",
+    "env/grouped_rollout.py": "75d2666757ff9d1394919fe720aa97ada0b9161ced431da8b8a451c26a99cc1a",
+    "env/models.py": "4912d99724eb08d5209b6ffc260af0ed11372d89442e88dba4ff190b0538989f",
+    "env/preference.py": "8ac59448c4393ea882ae444ff199695aa1944f9d0c5bfcf5fa6a2423444cf873",
+    "env/preference_plots.py": "8f714336fd726e8bb9ce9e4acbab6bc4d2865966cfac76d6c00bb7b1d0f09572",
+    "env/preference_rollout.py": "2f0c2a61fe632e2ce4771b14b9318714863c4e3d2f5283f4dda673bddc409064",
+    "env/rendering.py": "028d9e9427600ca229f4a7a6762b2a251241d122cdabc08c023ba222b829c060",
+    "env/run_grouped_preference.py": "431c8bced9f73328798f4c3bb273e3325e5e2c5d72f1d5f537a9a7ec4039be99",
+    "env/run_mode_ablation.py": "d1e7670887248ed6838a0a176ebdf0c16cf3e4821df6eba2ec4e1023e7c106ff",
+    "env/run_preference.py": "2e1d3ec63d6ed930f43aa4ef53cdf2fefdbc5bad3715c58effd4411e23916aa0",
+    "env/run_stage_a.py": "a0d2b5254423103609e048cab9380ffe94edb3fc7c92ef8e2c693b8250120534",
+    "env/run_stage_b.py": "34f6cb72322d6db0c2e9a1adc8f2be642060fdd9ffec7f93de56e4c103336a52",
+    "env/samplers.py": "ff91509cc43d5cd8a4704ac324f351225e5079bcae37c0ba4fd238243e0bb4f2",
+    "env/sfp_policies.py": "dbf14dce1e4c45d4e525c0c03229098eb64c022fa1e73cbaa246dde57c3def76",
+    "env/stage_b_artifacts.py": "f7c634d3cf54cda124513d52ba465bb5adc56dda3a8e98afe25967293199447e",
+    "env/stage_b_config.py": "23e88760cab5d263eb9cdf7f63afd9d5457a09fd03a5d6d91854251620059c8e",
+    "env/train_stage_b.py": "082b90f47b53e1abdc0fc2d41314708f6a053bccceac4465995c0ed6cee8b91b",
+    "env/visualize_stage_b.py": "691e7ef5e80115fb2903b63c791fb589077fad922ee5a1f8f8073ca9457aeb14"
+  },
+  "source_archive": "final-verified-sources.zip",
+  "source_archive_sha256": "50314a432fa2407bb3b607ad1479a38959721263bdae8881ba9ed7f8d308e181",
+  "report_links_exist": true,
+  "final_review": "../../../../../.superpowers/sdd/2026-09-12-mode-aligned-steering/final-review.md",
+  "final_review_pass": true,
+  "report_sha256": "cd2f06a8fb2633bf8691c7100611b847b914b06e661ef9eda642653c05d3d07f"
+}

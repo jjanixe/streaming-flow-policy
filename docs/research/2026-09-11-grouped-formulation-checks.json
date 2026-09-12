@@ -1,0 +1,117 @@
+{
+  "gibbs_identity": {
+    "probability_sum": 1.0,
+    "checked_distributions": 100,
+    "minimum_gap_to_gibbs_objective": 0.027595149333765945
+  },
+  "finite_L_counterexample": {
+    "intended_probability": 0.5,
+    "beta": 4,
+    "large_M_limits": [
+      {
+        "L": 1,
+        "noisy_candidate_probability": 0.7900128291929871
+      },
+      {
+        "L": 2,
+        "noisy_candidate_probability": 0.7042380771918325
+      },
+      {
+        "L": 4,
+        "noisy_candidate_probability": 0.617856025537574
+      },
+      {
+        "L": 16,
+        "noisy_candidate_probability": 0.5311286455838736
+      },
+      {
+        "L": 64,
+        "noisy_candidate_probability": 0.5078105933547478
+      },
+      {
+        "L": 1024,
+        "noisy_candidate_probability": 0.5004882807843579
+      }
+    ]
+  },
+  "overall_only_nonidentifiability": {
+    "alpha_1": [
+      0.5,
+      0.5
+    ],
+    "alpha_2": [
+      0.6,
+      0.4
+    ],
+    "max_overall_contrast_difference": 1.1102230246251565e-16,
+    "simplex_parameter_dof": 3,
+    "overall_contrast_rank": 2
+  },
+  "oracle_reparameterization": [
+    {
+      "old_weights": [
+        2,
+        -1
+      ],
+      "scale_S": 16.200970509799248,
+      "alpha": [
+        0.512197400036498,
+        0.48780259996350195
+      ],
+      "algebra_max_error": 2.6645352591003757e-15,
+      "saved_float32_contrast_max_error": 1.2574911227858365e-06
+    },
+    {
+      "old_weights": [
+        2,
+        1
+      ],
+      "scale_S": 16.200970509799248,
+      "alpha": [
+        0.512197400036498,
+        0.48780259996350195
+      ],
+      "algebra_max_error": 1.7763568394002505e-15,
+      "saved_float32_contrast_max_error": 1.4264010796960491e-06
+    },
+    {
+      "old_weights": [
+        -2,
+        -1
+      ],
+      "scale_S": 16.200970509799248,
+      "alpha": [
+        0.512197400036498,
+        0.48780259996350195
+      ],
+      "algebra_max_error": 2.6645352591003757e-15,
+      "saved_float32_contrast_max_error": 1.4264010796960491e-06
+    },
+    {
+      "old_weights": [
+        -2,
+        1
+      ],
+      "scale_S": 16.200970509799248,
+      "alpha": [
+        0.512197400036498,
+        0.48780259996350195
+      ],
+      "algebra_max_error": 1.7763568394002505e-15,
+      "saved_float32_contrast_max_error": 1.2574911245621934e-06
+    }
+  ],
+  "current_query_support": {
+    "option_count": 80,
+    "endpoint_range": [
+      0.0,
+      0.0
+    ],
+    "fixed_duration_seconds": 2,
+    "mean_speed_equals_length_over_duration": true,
+    "path_length_range": [
+      2.1039002104653184,
+      2.48244900955462
+    ]
+  }
+}

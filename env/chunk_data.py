@@ -179,3 +179,35 @@ class PushTChunkDataset(torch.utils.data.Dataset):
             "anchor_physical_l2": np.float32(anchor_physical_l2),
         }
         return self.transform(datum) if self.transform is not None else datum
+
+
+class MaterializedPushTTrainingDataset(torch.utils.data.Dataset):
+    """Cache normalized observation/action windows used repeatedly in training."""
+
+    def __init__(self, source: PushTChunkDataset) -> None:
+        if not isinstance(source, PushTChunkDataset):
+            raise ValueError("source must be a PushTChunkDataset")
+        if source.transform is not None:
+            raise ValueError("source must not have a per-sample transform")
+        samples = [source[index] for index in range(len(source))]
+        if not samples:
+            raise ValueError("source must contain at least one window")
+        observations = np.stack([sample["obs"] for sample in samples]).astype(
+            np.float32,
+            copy=False,
+        )
+        actions = np.stack([sample["action"] for sample in samples]).astype(
+            np.float32,
+            copy=False,
+        )
+        self.observations = torch.from_numpy(observations)
+        self.actions = torch.from_numpy(actions)
+
+    def __len__(self) -> int:
+        return int(self.observations.shape[0])
+
+    def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
+        return {
+            "obs": self.observations[index],
+            "action": self.actions[index],
+        }

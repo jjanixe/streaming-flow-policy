@@ -1,0 +1,211 @@
+{
+  "condition_key": "gaussian__lower_narrow_direction__best__m128",
+  "config_digest": "9babe201788a9821bcc40aa08c8b09250ca732c73884aa87a55a01c7f507c5d4",
+  "source_digest": "e1cb0fc1ba4f6285d0ae658cc48d970ef5e3bb7a4d6ca514aa26b800f1eaffd0",
+  "checkpoint_digest": "4228d9dae9baedc8b64d66ffb4d768798731f2c6788efea681dc18d745e2abba",
+  "stats_digest": "9d9774633654f63c92a2f11d0768eae6f2b81d920a835da90a7d7cf3c8cc440b",
+  "train_data_digest": "3fb4d5e8f79027bf1c113c8a85d48b82e30e43e707b8c895be96b9ab49d82e78",
+  "artifact": "gaussian__lower_narrow_direction__best__m128.npz",
+  "artifact_digest": "a77bab66de03e7dfd66e44c7d8b688bebb1c68252844d020c34ab16eb4efc027",
+  "artifact_fields": [
+    "action_limit_failure",
+    "batch_replan_seconds",
+    "candidate_scores",
+    "checkpoint_digest",
+    "condition_key",
+    "config_digest",
+    "continuation_action_limit_failure",
+    "continuation_features",
+    "continuation_goal_errors",
+    "continuation_lengths",
+    "continuation_model_anchors",
+    "continuation_numerical_failure",
+    "continuation_positions",
+    "continuation_requested_actions",
+    "continuation_success",
+    "current_commands",
+    "current_latents",
+    "current_seeds",
+    "current_valid",
+    "decision_mask",
+    "environment_seeds",
+    "ess",
+    "expected_features",
+    "expected_utility",
+    "fallback",
+    "future_failure_fractions",
+    "future_latents",
+    "future_seeds",
+    "goal_costs",
+    "goal_errors",
+    "lengths",
+    "model_anchors",
+    "numerical_failure",
+    "observed_anchors",
+    "positions",
+    "requested_actions",
+    "rollout_seeds",
+    "selected_current_latents",
+    "selected_current_valid",
+    "selected_indices",
+    "selection_seeds",
+    "source_digest",
+    "stats_digest",
+    "success",
+    "train_data_digest"
+  ],
+  "record_digest": "5e8008152a315ffd165eb128395a7ce969b45e264974dc770cb2eda1ea560f0a",
+  "record": {
+    "count": 16,
+    "success_count": 16,
+    "success_rate": 1.0,
+    "success_wilson_95": [
+      0.8063865817272802,
+      1.0
+    ],
+    "complete_count": 16,
+    "incomplete_count": 0,
+    "numerical_failure_count": 0,
+    "action_limit_failure_count": 0,
+    "mean_goal_error": 0.013139986313035479,
+    "midpoint_denominator": 16,
+    "midpoint_counts": {
+      "upper_narrow": 3,
+      "upper_wide": 4,
+      "lower_narrow": 4,
+      "lower_wide": 5,
+      "other": 0
+    },
+    "successful_midpoint_counts": {
+      "upper_narrow": 3,
+      "upper_wide": 4,
+      "lower_narrow": 4,
+      "lower_wide": 5,
+      "other": 0
+    },
+    "decision_count": 128,
+    "fallback_count": 0,
+    "mean_ess": 1.0,
+    "mean_valid_candidate_fraction": 1.0,
+    "mean_expected_continuation_failure_fraction": 0.0137481689453125,
+    "mean_valid_current_continuation_failure_fraction": 0.0137481689453125,
+    "mean_selected_continuation_failure_fraction": 0.0,
+    "selected_continuation_denominator": 128,
+    "batch_replan_latency_p50_seconds": 1.71501075749984,
+    "batch_replan_latency_p95_seconds": 2.852618301214534,
+    "utility_by_user": {
+      "upper_narrow_direction": {
+        "all_count": 16,
+        "all_mean": 0.45000000000000007,
+        "all_standard_error": 0.08418234177466596,
+        "successful_count": 16,
+        "successful_mean": 0.45000000000000007,
+        "successful_standard_error": 0.08418234177466596
+      },
+      "upper_narrow_width": {
+        "all_count": 16,
+        "all_mean": 0.45,
+        "all_standard_error": 0.08418234177466595,
+        "successful_count": 16,
+        "successful_mean": 0.45,
+        "successful_standard_error": 0.08418234177466595
+      },
+      "upper_wide_direction": {
+        "all_count": 16,
+        "all_mean": 0.47000000000000003,
+        "all_standard_error": 0.08481352093465602,
+        "successful_count": 16,
+        "successful_mean": 0.47000000000000003,
+        "successful_standard_error": 0.08481352093465602
+      },
+      "upper_wide_width": {
+        "all_count": 16,
+        "all_mean": 0.53,
+        "all_standard_error": 0.08481352093465602,
+        "successful_count": 16,
+        "successful_mean": 0.53,
+        "successful_standard_error": 0.08481352093465602
+      },
+      "lower_narrow_direction": {
+        "all_count": 16,
+        "all_mean": 0.53,
+        "all_standard_error": 0.08481352093465602,
+        "successful_count": 16,
+        "successful_mean": 0.53,
+        "successful_standard_error": 0.08481352093465602
+      },
+      "lower_narrow_width": {
+        "all_count": 16,
+        "all_mean": 0.4700000000000001,
+        "all_standard_error": 0.08481352093465602,
+        "successful_count": 16,
+        "successful_mean": 0.4700000000000001,
+        "successful_standard_error": 0.08481352093465602
+      },
+      "lower_wide_direction": {
+        "all_count": 16,
+        "all_mean": 0.55,
+        "all_standard_error": 0.08418234177466596,
+        "successful_count": 16,
+        "successful_mean": 0.55,
+        "successful_standard_error": 0.08418234177466596
+      },
+      "lower_wide_width": {
+        "all_count": 16,
+        "all_mean": 0.55,
+        "all_standard_error": 0.08418234177466595,
+        "successful_count": 16,
+        "successful_mean": 0.55,
+        "successful_standard_error": 0.08418234177466595
+      }
+    },
+    "target_mode": "lower_narrow",
+    "successful_target_count": 4,
+    "successful_target_rate": 0.25,
+    "successful_target_wilson_95": [
+      0.10181901984237346,
+      0.49498768929398645
+    ],
+    "mode_denominator": 16,
+    "mode_counts": {
+      "upper_narrow": 3,
+      "upper_wide": 4,
+      "lower_narrow": 4,
+      "lower_wide": 5,
+      "other": 0
+    },
+    "successful_mode_denominator": 16,
+    "successful_mode_counts": {
+      "upper_narrow": 3,
+      "upper_wide": 4,
+      "lower_narrow": 4,
+      "lower_wide": 5,
+      "other": 0
+    },
+    "artifact": "gaussian__lower_narrow_direction__best__m128.npz",
+    "completion_marker": "gaussian__lower_narrow_direction__best__m128.complete.json",
+    "regime": "gaussian",
+    "profile": "lower_narrow_direction",
+    "method": "best",
+    "M": 128,
+    "preference": {
+      "weights": [
+        [
+          0.1,
+          0.9
+        ],
+        [
+          0.1,
+          0.9
+        ]
+      ],
+      "alpha": [
+        0.8,
+        0.2
+      ]
+    },
+    "proposal_std": 1.0,
+    "task_failure_count": 0,
+    "elapsed_seconds": 13.78271015000064
+  }
+}

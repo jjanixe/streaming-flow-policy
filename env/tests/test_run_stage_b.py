@@ -372,6 +372,9 @@ def test_reduced_stage_b2_run_writes_controlled_diversity_artifacts(tmp_path):
             parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)),
         )
     assert diagnostics["dtypes"]["learned_model_and_ode"] == "float32"
+    assert diagnostics["dtypes"]["training_foh_and_targets"] == "float32"
+    assert diagnostics["dtypes"]["drake_validation_internal_boundary"] == "float64"
+    assert diagnostics["dtypes"]["drake_validation_output"] == "float32"
 
 
 def test_rollout_seed_derivation_is_stable_and_validated(monkeypatch):

@@ -1,0 +1,222 @@
+{
+  "source": "/home/janice9902/starlab/forked/streaming-flow-policy/.worktrees/stage-b2-sfps/env/artifacts/grouped_preference/mode-aligned-best-M128-std8",
+  "checkpoint_digest": "4228d9dae9baedc8b64d66ffb4d768798731f2c6788efea681dc18d745e2abba",
+  "beam_size": 8,
+  "current_M": 128,
+  "second_M": 128,
+  "L": 4,
+  "proposal_std": 8.0,
+  "executed_future_index": 0,
+  "limitation": "Failure-conditioned exploratory oracle diagnostic; no held-out or learned-control claim.",
+  "cases": [
+    {
+      "user": "upper_wide_direction",
+      "episode": 4,
+      "target_mode": "upper_wide",
+      "first_candidate": 6,
+      "second_candidate": 21,
+      "score": 11.630214074520113,
+      "expected_features": [
+        [
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0
+        ]
+      ],
+      "task_success": true,
+      "successful_target_mode": false,
+      "midpoint_y": 0.3156611919403076,
+      "elapsed_seconds": 2.6378650210099295,
+      "artifact": "upper_wide_direction__episode4.npz"
+    },
+    {
+      "user": "upper_wide_direction",
+      "episode": 6,
+      "target_mode": "upper_wide",
+      "first_candidate": 125,
+      "second_candidate": 1,
+      "score": 13.802019239303654,
+      "expected_features": [
+        [
+          1.0,
+          0.0
+        ],
+        [
+          1.0,
+          0.0
+        ]
+      ],
+      "task_success": true,
+      "successful_target_mode": true,
+      "midpoint_y": 0.4359034299850464,
+      "elapsed_seconds": 2.343992560985498,
+      "artifact": "upper_wide_direction__episode6.npz"
+    },
+    {
+      "user": "upper_wide_direction",
+      "episode": 14,
+      "target_mode": "upper_wide",
+      "first_candidate": 92,
+      "second_candidate": 77,
+      "score": 11.722846702632745,
+      "expected_features": [
+        [
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0
+        ]
+      ],
+      "task_success": true,
+      "successful_target_mode": false,
+      "midpoint_y": 0.32939422130584717,
+      "elapsed_seconds": 2.3027566989767365,
+      "artifact": "upper_wide_direction__episode14.npz"
+    },
+    {
+      "user": "upper_wide_width",
+      "episode": 4,
+      "target_mode": "upper_wide",
+      "first_candidate": 42,
+      "second_candidate": 97,
+      "score": 11.82521652478525,
+      "expected_features": [
+        [
+          0.0,
+          1.0
+        ],
+        [
+          1.0,
+          0.0
+        ]
+      ],
+      "task_success": true,
+      "successful_target_mode": false,
+      "midpoint_y": -0.4301276206970215,
+      "elapsed_seconds": 2.308397365035489,
+      "artifact": "upper_wide_width__episode4.npz"
+    },
+    {
+      "user": "upper_wide_width",
+      "episode": 6,
+      "target_mode": "upper_wide",
+      "first_candidate": 125,
+      "second_candidate": 1,
+      "score": 13.802019239303654,
+      "expected_features": [
+        [
+          1.0,
+          0.0
+        ],
+        [
+          1.0,
+          0.0
+        ]
+      ],
+      "task_success": true,
+      "successful_target_mode": true,
+      "midpoint_y": 0.4359034299850464,
+      "elapsed_seconds": 2.297036528994795,
+      "artifact": "upper_wide_width__episode6.npz"
+    },
+    {
+      "user": "upper_wide_width",
+      "episode": 12,
+      "target_mode": "upper_wide",
+      "first_candidate": 52,
+      "second_candidate": 71,
+      "score": 13.957395601067446,
+      "expected_features": [
+        [
+          1.0,
+          0.0
+        ],
+        [
+          1.0,
+          0.0
+        ]
+      ],
+      "task_success": true,
+      "successful_target_mode": true,
+      "midpoint_y": 0.4245426654815674,
+      "elapsed_seconds": 2.304076999949757,
+      "artifact": "upper_wide_width__episode12.npz"
+    },
+    {
+      "user": "upper_wide_width",
+      "episode": 14,
+      "target_mode": "upper_wide",
+      "first_candidate": 112,
+      "second_candidate": 53,
+      "score": 11.808459714447102,
+      "expected_features": [
+        [
+          0.0,
+          1.0
+        ],
+        [
+          1.0,
+          0.0
+        ]
+      ],
+      "task_success": true,
+      "successful_target_mode": false,
+      "midpoint_y": -0.47046712040901184,
+      "elapsed_seconds": 2.320245418988634,
+      "artifact": "upper_wide_width__episode14.npz"
+    },
+    {
+      "user": "lower_wide_direction",
+      "episode": 0,
+      "target_mode": "lower_wide",
+      "first_candidate": 23,
+      "second_candidate": 67,
+      "score": 11.561363379546536,
+      "expected_features": [
+        [
+          0.0,
+          1.0
+        ],
+        [
+          0.0,
+          1.0
+        ]
+      ],
+      "task_success": true,
+      "successful_target_mode": false,
+      "midpoint_y": -0.28626155853271484,
+      "elapsed_seconds": 2.321151395968627,
+      "artifact": "lower_wide_direction__episode0.npz"
+    },
+    {
+      "user": "lower_wide_width",
+      "episode": 0,
+      "target_mode": "lower_wide",
+      "first_candidate": 46,
+      "second_candidate": 83,
+      "score": 11.782441888922142,
+      "expected_features": [
+        [
+          1.0,
+          0.0
+        ],
+        [
+          1.0,
+          0.0
+        ]
+      ],
+      "task_success": true,
+      "successful_target_mode": false,
+      "midpoint_y": 0.572033166885376,
+      "elapsed_seconds": 2.333382298995275,
+      "artifact": "lower_wide_width__episode0.npz"
+    }
+  ],
+  "repaired_cases": 3,
+  "total_cases": 9
+}

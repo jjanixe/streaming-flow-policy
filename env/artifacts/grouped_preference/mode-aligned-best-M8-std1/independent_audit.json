@@ -1,0 +1,404 @@
+{
+  "replayed_episodes": 576,
+  "decisions_checked": 4608,
+  "feature_kind": "mode",
+  "all_checks_passed": true,
+  "conditions": {
+    "centered__base": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 4,
+        "upper_wide": 0,
+        "lower_narrow": 3,
+        "lower_wide": 0,
+        "other": 9
+      }
+    },
+    "centered__task_only": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 0,
+        "upper_wide": 0,
+        "lower_narrow": 9,
+        "lower_wide": 0,
+        "other": 7
+      }
+    },
+    "centered__upper_narrow_direction__oracle_best": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 11,
+        "upper_wide": 0,
+        "lower_narrow": 4,
+        "lower_wide": 0,
+        "other": 1
+      }
+    },
+    "centered__upper_narrow_direction__learned_20": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 11,
+        "upper_wide": 0,
+        "lower_narrow": 4,
+        "lower_wide": 0,
+        "other": 1
+      }
+    },
+    "centered__upper_narrow_width__oracle_best": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 11,
+        "upper_wide": 0,
+        "lower_narrow": 4,
+        "lower_wide": 0,
+        "other": 1
+      }
+    },
+    "centered__upper_narrow_width__learned_20": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 11,
+        "upper_wide": 0,
+        "lower_narrow": 4,
+        "lower_wide": 0,
+        "other": 1
+      }
+    },
+    "centered__upper_wide_direction__oracle_best": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 11,
+        "upper_wide": 0,
+        "lower_narrow": 3,
+        "lower_wide": 0,
+        "other": 2
+      }
+    },
+    "centered__upper_wide_direction__learned_20": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 11,
+        "upper_wide": 0,
+        "lower_narrow": 4,
+        "lower_wide": 0,
+        "other": 1
+      }
+    },
+    "centered__upper_wide_width__oracle_best": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 11,
+        "upper_wide": 0,
+        "lower_narrow": 4,
+        "lower_wide": 0,
+        "other": 1
+      }
+    },
+    "centered__upper_wide_width__learned_20": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 11,
+        "upper_wide": 0,
+        "lower_narrow": 4,
+        "lower_wide": 0,
+        "other": 1
+      }
+    },
+    "centered__lower_narrow_direction__oracle_best": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 0,
+        "lower_narrow": 12,
+        "lower_wide": 0,
+        "other": 1
+      }
+    },
+    "centered__lower_narrow_direction__learned_20": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 0,
+        "lower_narrow": 12,
+        "lower_wide": 0,
+        "other": 1
+      }
+    },
+    "centered__lower_narrow_width__oracle_best": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 0,
+        "lower_narrow": 12,
+        "lower_wide": 0,
+        "other": 1
+      }
+    },
+    "centered__lower_narrow_width__learned_20": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 0,
+        "lower_narrow": 12,
+        "lower_wide": 0,
+        "other": 1
+      }
+    },
+    "centered__lower_wide_direction__oracle_best": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 2,
+        "upper_wide": 0,
+        "lower_narrow": 13,
+        "lower_wide": 0,
+        "other": 1
+      }
+    },
+    "centered__lower_wide_direction__learned_20": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 0,
+        "lower_narrow": 12,
+        "lower_wide": 0,
+        "other": 1
+      }
+    },
+    "centered__lower_wide_width__oracle_best": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 0,
+        "lower_narrow": 12,
+        "lower_wide": 0,
+        "other": 1
+      }
+    },
+    "centered__lower_wide_width__learned_20": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 0,
+        "lower_narrow": 12,
+        "lower_wide": 0,
+        "other": 1
+      }
+    },
+    "gaussian__base": {
+      "episodes": 16,
+      "task_success": 14,
+      "successful_midpoint_counts": {
+        "upper_narrow": 0,
+        "upper_wide": 5,
+        "lower_narrow": 1,
+        "lower_wide": 7,
+        "other": 1
+      }
+    },
+    "gaussian__task_only": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 2,
+        "upper_wide": 5,
+        "lower_narrow": 3,
+        "lower_wide": 6,
+        "other": 0
+      }
+    },
+    "gaussian__upper_narrow_direction__oracle_best": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 4,
+        "lower_narrow": 4,
+        "lower_wide": 5,
+        "other": 0
+      }
+    },
+    "gaussian__upper_narrow_direction__learned_20": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 4,
+        "lower_narrow": 4,
+        "lower_wide": 5,
+        "other": 0
+      }
+    },
+    "gaussian__upper_narrow_width__oracle_best": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 4,
+        "lower_narrow": 4,
+        "lower_wide": 5,
+        "other": 0
+      }
+    },
+    "gaussian__upper_narrow_width__learned_20": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 4,
+        "lower_narrow": 4,
+        "lower_wide": 5,
+        "other": 0
+      }
+    },
+    "gaussian__upper_wide_direction__oracle_best": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 1,
+        "upper_wide": 6,
+        "lower_narrow": 0,
+        "lower_wide": 9,
+        "other": 0
+      }
+    },
+    "gaussian__upper_wide_direction__learned_20": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 1,
+        "upper_wide": 6,
+        "lower_narrow": 0,
+        "lower_wide": 9,
+        "other": 0
+      }
+    },
+    "gaussian__upper_wide_width__oracle_best": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 1,
+        "upper_wide": 6,
+        "lower_narrow": 0,
+        "lower_wide": 9,
+        "other": 0
+      }
+    },
+    "gaussian__upper_wide_width__learned_20": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 1,
+        "upper_wide": 6,
+        "lower_narrow": 0,
+        "lower_wide": 9,
+        "other": 0
+      }
+    },
+    "gaussian__lower_narrow_direction__oracle_best": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 4,
+        "lower_narrow": 4,
+        "lower_wide": 5,
+        "other": 0
+      }
+    },
+    "gaussian__lower_narrow_direction__learned_20": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 4,
+        "lower_narrow": 4,
+        "lower_wide": 5,
+        "other": 0
+      }
+    },
+    "gaussian__lower_narrow_width__oracle_best": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 4,
+        "lower_narrow": 4,
+        "lower_wide": 5,
+        "other": 0
+      }
+    },
+    "gaussian__lower_narrow_width__learned_20": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 3,
+        "upper_wide": 4,
+        "lower_narrow": 4,
+        "lower_wide": 5,
+        "other": 0
+      }
+    },
+    "gaussian__lower_wide_direction__oracle_best": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 1,
+        "upper_wide": 6,
+        "lower_narrow": 0,
+        "lower_wide": 9,
+        "other": 0
+      }
+    },
+    "gaussian__lower_wide_direction__learned_20": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 1,
+        "upper_wide": 6,
+        "lower_narrow": 0,
+        "lower_wide": 9,
+        "other": 0
+      }
+    },
+    "gaussian__lower_wide_width__oracle_best": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 1,
+        "upper_wide": 6,
+        "lower_narrow": 0,
+        "lower_wide": 9,
+        "other": 0
+      }
+    },
+    "gaussian__lower_wide_width__learned_20": {
+      "episodes": 16,
+      "task_success": 16,
+      "successful_midpoint_counts": {
+        "upper_narrow": 1,
+        "upper_wide": 6,
+        "lower_narrow": 0,
+        "lower_wide": 9,
+        "other": 0
+      }
+    }
+  }
+}

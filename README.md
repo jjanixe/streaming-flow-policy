@@ -6,6 +6,16 @@
       <img style="width: 70%; min-width: 500px" src="https://github.com/user-attachments/assets/591fc294-b822-4d2c-9e41-2660b39cc863"></img>
 </div>
 
+## Two-group preference steering toy
+
+This fork includes a frozen-SFPS experiment that fits direction (upper/lower)
+and width (wide/narrow) preferences from scoped comparisons, then selects latent
+candidates during inference. Start with the [method, equations, and code map](docs/research/2026-09-12-preference-steering-method.md),
+[actual inference results and GIFs](docs/research/2026-09-12-mode-aligned-steering-results.md),
+and [artifact locations and reproducibility manifest](docs/research/2026-09-12-preference-steering-artifacts.md).
+The exploratory pilot controls all four centered modes; Gaussian wide retains
+misses. See [env/README.md](env/README.md) for the toy commands.
+
 ## 🛠️ Installation
 
 1. Create a virtual environment

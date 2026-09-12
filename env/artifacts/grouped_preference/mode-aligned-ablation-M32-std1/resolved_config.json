@@ -1,0 +1,198 @@
+{
+  "seed": 0,
+  "device": "cuda:3",
+  "candidates": [
+    32
+  ],
+  "continuations": 4,
+  "rollout_count": 16,
+  "integration_steps_per_action": 6,
+  "regimes": [
+    "centered",
+    "gaussian"
+  ],
+  "users": {
+    "upper_narrow_direction": {
+      "weights": [
+        [
+          0.9,
+          0.09999999999999998
+        ],
+        [
+          0.1,
+          0.9
+        ]
+      ],
+      "alpha": [
+        0.8,
+        0.2
+      ]
+    },
+    "upper_narrow_width": {
+      "weights": [
+        [
+          0.9,
+          0.09999999999999998
+        ],
+        [
+          0.1,
+          0.9
+        ]
+      ],
+      "alpha": [
+        0.2,
+        0.8
+      ]
+    },
+    "upper_wide_direction": {
+      "weights": [
+        [
+          0.9,
+          0.09999999999999998
+        ],
+        [
+          0.9,
+          0.09999999999999998
+        ]
+      ],
+      "alpha": [
+        0.8,
+        0.2
+      ]
+    },
+    "upper_wide_width": {
+      "weights": [
+        [
+          0.9,
+          0.09999999999999998
+        ],
+        [
+          0.9,
+          0.09999999999999998
+        ]
+      ],
+      "alpha": [
+        0.2,
+        0.8
+      ]
+    },
+    "lower_narrow_direction": {
+      "weights": [
+        [
+          0.1,
+          0.9
+        ],
+        [
+          0.1,
+          0.9
+        ]
+      ],
+      "alpha": [
+        0.8,
+        0.2
+      ]
+    },
+    "lower_narrow_width": {
+      "weights": [
+        [
+          0.1,
+          0.9
+        ],
+        [
+          0.1,
+          0.9
+        ]
+      ],
+      "alpha": [
+        0.2,
+        0.8
+      ]
+    },
+    "lower_wide_direction": {
+      "weights": [
+        [
+          0.1,
+          0.9
+        ],
+        [
+          0.9,
+          0.09999999999999998
+        ]
+      ],
+      "alpha": [
+        0.8,
+        0.2
+      ]
+    },
+    "lower_wide_width": {
+      "weights": [
+        [
+          0.1,
+          0.9
+        ],
+        [
+          0.9,
+          0.09999999999999998
+        ]
+      ],
+      "alpha": [
+        0.2,
+        0.8
+      ]
+    }
+  },
+  "methods": [
+    "soft",
+    "best"
+  ],
+  "beta": 16.0,
+  "proposal_std": 1.0,
+  "feature_kind": "mode",
+  "checkpoint_path": "/home/janice9902/starlab/forked/streaming-flow-policy/.worktrees/stage-b2-sfps/env/artifacts/stage_b/b2-seed0-optimized/sfps_best.pt",
+  "stats_path": "/home/janice9902/starlab/forked/streaming-flow-policy/.worktrees/stage-b2-sfps/env/artifacts/stage_b/b2-seed0-optimized/pusht_stats.npz",
+  "demonstrations_path": "/home/janice9902/starlab/forked/streaming-flow-policy/env/artifacts/demonstrations.npz",
+  "checkpoint_digest": "4228d9dae9baedc8b64d66ffb4d768798731f2c6788efea681dc18d745e2abba",
+  "stats_digest": "9d9774633654f63c92a2f11d0768eae6f2b81d920a835da90a7d7cf3c8cc440b",
+  "demonstrations_digest": "141511b0ff5dc038b65fb5f1101468588f5de0e08651b575141421a3380f295b",
+  "train_data_digest": "3fb4d5e8f79027bf1c113c8a85d48b82e30e43e707b8c895be96b9ab49d82e78",
+  "source_digest": "e1cb0fc1ba4f6285d0ae658cc48d970ef5e3bb7a4d6ca514aa26b800f1eaffd0",
+  "source_digests": {
+    "env/run_mode_ablation.py": "d1e7670887248ed6838a0a176ebdf0c16cf3e4821df6eba2ec4e1023e7c106ff",
+    "env/run_grouped_preference.py": "431c8bced9f73328798f4c3bb273e3325e5e2c5d72f1d5f537a9a7ec4039be99",
+    "env/grouped_rollout.py": "75d2666757ff9d1394919fe720aa97ada0b9161ced431da8b8a451c26a99cc1a",
+    "env/grouped_preference.py": "18efc1654f05df4c80573095020c1a454666dc7968b387c5e5f59ab8263f04b2",
+    "env/preference_rollout.py": "2f0c2a61fe632e2ce4771b14b9318714863c4e3d2f5283f4dda673bddc409064",
+    "env/environment.py": "c9f8e94a0400f61e0fea5b3fb3390aab240ca050572da6d0b8d05cc6c57e0c78",
+    "env/config.py": "e006c7a85cdd253694d622cb602ce597d606b51a3e4e411d4a71e1bd772975aa",
+    "env/sfp_policies.py": "dbf14dce1e4c45d4e525c0c03229098eb64c022fa1e73cbaa246dde57c3def76"
+  },
+  "torch_threads": 1,
+  "environment": {
+    "start": [
+      -1.0,
+      0.0
+    ],
+    "goal": [
+      1.0,
+      0.0
+    ],
+    "physical_duration_s": 2.0,
+    "horizon_steps": 64,
+    "initial_sigma": 0.04,
+    "goal_tolerance": 0.1,
+    "visualization_x": [
+      -1.3,
+      1.3
+    ],
+    "visualization_y": [
+      -0.9,
+      0.9
+    ],
+    "max_step_distance": 0.075
+  },
+  "model_horizon": 16,
+  "prediction_points": 9,
+  "executed_commands": 8,
+  "goal_cost": "(error/.1)^2 + 25*(not success)",
+  "proposal_distribution": "guided current latents use proposal_std * N(0,I); independent future latents use N(0,I)"
+}

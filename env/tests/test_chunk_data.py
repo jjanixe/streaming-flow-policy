@@ -3,8 +3,10 @@ from dataclasses import replace
 
 import numpy as np
 import pytest
+import torch
 
 from env.chunk_data import (
+    MaterializedPushTTrainingDataset,
     PushTChunkDataset,
     build_episode_arrays,
     fit_pusht_stats,
@@ -140,3 +142,30 @@ def test_first_and_last_windows_match_pusht_padding_and_anchor():
     assert first["action"].shape == (16, 2)
     assert first["trajectory_id"] == split.trajectory_ids[0]
     assert first["source_split"] == "validation"
+
+
+def test_materialized_training_dataset_preserves_raw_window_tensors():
+    bank = generate_demonstration_bank(DEFAULT_CONFIG, seed=15)
+    stats = fit_pusht_stats(bank)
+    raw = PushTChunkDataset(bank, split="validation", stats=stats)
+
+    materialized = MaterializedPushTTrainingDataset(raw)
+
+    assert len(materialized) == len(raw)
+    for index in (0, 57, len(raw) - 1):
+        expected = raw[index]
+        actual = materialized[index]
+        assert actual.keys() == {"obs", "action"}
+        torch.testing.assert_close(
+            actual["obs"],
+            torch.from_numpy(expected["obs"]),
+            rtol=0.0,
+            atol=0.0,
+        )
+        torch.testing.assert_close(
+            actual["action"],
+            torch.from_numpy(expected["action"]),
+            rtol=0.0,
+            atol=0.0,
+        )
+        assert actual["obs"].dtype == actual["action"].dtype == torch.float32

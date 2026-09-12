@@ -112,6 +112,29 @@ class LatentSensitiveStochasticPolicy:
         return (anchor[None, :] + fractions * delta).unsqueeze(0)
 
 
+class BatchedLatentSensitiveStochasticPolicy(LatentSensitiveStochasticPolicy):
+    def __init__(self) -> None:
+        self.batch_sizes: list[int] = []
+
+    def predict(self, *args, **kwargs):
+        raise AssertionError("evaluate_sfps must use predict_batch")
+
+    def predict_batch(
+        self,
+        nobs,
+        num_actions,
+        integration_steps_per_action,
+        *,
+        latents,
+    ):
+        assert nobs.dtype == latents.dtype == torch.float32
+        assert num_actions == 9
+        self.batch_sizes.append(len(nobs))
+        fractions = torch.linspace(0.0, 1.0, 9, dtype=torch.float32)[None, :, None]
+        delta = 0.02 * torch.tanh(latents)[:, None, :]
+        return nobs[:, -1:, :2] + fractions * delta
+
+
 def test_sfps_rollout_uses_fresh_seeded_latent_at_each_chunk():
     bank = generate_demonstration_bank(DEFAULT_CONFIG, seed=301)
     stats = fit_pusht_stats(bank)
@@ -172,6 +195,56 @@ def test_sfps_centered_evaluation_changes_only_latent_streams():
     assert metrics["same_state_unique_raw_trajectory_count"] > 1
     assert metrics["same_state_stochastic_diversity_observed"] is True
     assert metrics["latent_seed_count"] == 3
+
+
+def test_sfps_evaluation_batches_active_rollouts_once_per_chunk():
+    bank = generate_demonstration_bank(DEFAULT_CONFIG, seed=309)
+    stats = fit_pusht_stats(bank)
+    policy = BatchedLatentSensitiveStochasticPolicy()
+
+    metrics, batch = evaluate_sfps(
+        policy,
+        stats,
+        DEFAULT_CONFIG.environment,
+        environment_seeds=[310, 311, 312],
+        latent_seeds=[313, 314, 315],
+        center_init=True,
+        integration_steps_per_action=1,
+    )
+
+    assert isinstance(batch, SFPSRolloutBatch)
+    assert policy.batch_sizes == [3] * 8
+    assert metrics["rollout_count"] == 3
+    assert all(rollout.executed_action_count == 64 for rollout in batch.rollouts)
+
+
+@pytest.mark.parametrize(
+    ("environment_seeds", "latent_seeds", "message"),
+    [
+        ([-1], [1], "environment_seed"),
+        ([1], [-1], "latent_seed"),
+        ([True], [1], "environment_seed"),
+        ([1], [True], "latent_seed"),
+    ],
+)
+def test_sfps_batched_evaluation_rejects_invalid_seeds(
+    environment_seeds,
+    latent_seeds,
+    message,
+):
+    bank = generate_demonstration_bank(DEFAULT_CONFIG, seed=316)
+    stats = fit_pusht_stats(bank)
+
+    with pytest.raises(ValueError, match=message):
+        evaluate_sfps(
+            BatchedLatentSensitiveStochasticPolicy(),
+            stats,
+            DEFAULT_CONFIG.environment,
+            environment_seeds=environment_seeds,
+            latent_seeds=latent_seeds,
+            center_init=True,
+            integration_steps_per_action=1,
+        )
 
 
 def test_rollout_replans_eight_times_and_executes_64_actions():

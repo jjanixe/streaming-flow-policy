@@ -1,0 +1,211 @@
+{
+  "condition_key": "gaussian__upper_wide_direction__best__m128",
+  "config_digest": "9babe201788a9821bcc40aa08c8b09250ca732c73884aa87a55a01c7f507c5d4",
+  "source_digest": "e1cb0fc1ba4f6285d0ae658cc48d970ef5e3bb7a4d6ca514aa26b800f1eaffd0",
+  "checkpoint_digest": "4228d9dae9baedc8b64d66ffb4d768798731f2c6788efea681dc18d745e2abba",
+  "stats_digest": "9d9774633654f63c92a2f11d0768eae6f2b81d920a835da90a7d7cf3c8cc440b",
+  "train_data_digest": "3fb4d5e8f79027bf1c113c8a85d48b82e30e43e707b8c895be96b9ab49d82e78",
+  "artifact": "gaussian__upper_wide_direction__best__m128.npz",
+  "artifact_digest": "b06989d4580e77064d33f205ad083e917d785cd20f6cd199b8deab523d61d9ea",
+  "artifact_fields": [
+    "action_limit_failure",
+    "batch_replan_seconds",
+    "candidate_scores",
+    "checkpoint_digest",
+    "condition_key",
+    "config_digest",
+    "continuation_action_limit_failure",
+    "continuation_features",
+    "continuation_goal_errors",
+    "continuation_lengths",
+    "continuation_model_anchors",
+    "continuation_numerical_failure",
+    "continuation_positions",
+    "continuation_requested_actions",
+    "continuation_success",
+    "current_commands",
+    "current_latents",
+    "current_seeds",
+    "current_valid",
+    "decision_mask",
+    "environment_seeds",
+    "ess",
+    "expected_features",
+    "expected_utility",
+    "fallback",
+    "future_failure_fractions",
+    "future_latents",
+    "future_seeds",
+    "goal_costs",
+    "goal_errors",
+    "lengths",
+    "model_anchors",
+    "numerical_failure",
+    "observed_anchors",
+    "positions",
+    "requested_actions",
+    "rollout_seeds",
+    "selected_current_latents",
+    "selected_current_valid",
+    "selected_indices",
+    "selection_seeds",
+    "source_digest",
+    "stats_digest",
+    "success",
+    "train_data_digest"
+  ],
+  "record_digest": "f3a54ca40ea47ae5817da65157b7f9d1edcff6583d09f09eed021bb076f46a16",
+  "record": {
+    "count": 16,
+    "success_count": 16,
+    "success_rate": 1.0,
+    "success_wilson_95": [
+      0.8063865817272802,
+      1.0
+    ],
+    "complete_count": 16,
+    "incomplete_count": 0,
+    "numerical_failure_count": 0,
+    "action_limit_failure_count": 0,
+    "mean_goal_error": 0.015280791878467426,
+    "midpoint_denominator": 16,
+    "midpoint_counts": {
+      "upper_narrow": 1,
+      "upper_wide": 6,
+      "lower_narrow": 0,
+      "lower_wide": 9,
+      "other": 0
+    },
+    "successful_midpoint_counts": {
+      "upper_narrow": 1,
+      "upper_wide": 6,
+      "lower_narrow": 0,
+      "lower_wide": 9,
+      "other": 0
+    },
+    "decision_count": 128,
+    "fallback_count": 0,
+    "mean_ess": 1.0,
+    "mean_valid_candidate_fraction": 1.0,
+    "mean_expected_continuation_failure_fraction": 0.0137481689453125,
+    "mean_valid_current_continuation_failure_fraction": 0.0137481689453125,
+    "mean_selected_continuation_failure_fraction": 0.0,
+    "selected_continuation_denominator": 128,
+    "batch_replan_latency_p50_seconds": 1.696421332511818,
+    "batch_replan_latency_p95_seconds": 2.8321055539388906,
+    "utility_by_user": {
+      "upper_narrow_direction": {
+        "all_count": 16,
+        "all_mean": 0.39,
+        "all_standard_error": 0.08544003745317533,
+        "successful_count": 16,
+        "successful_mean": 0.39,
+        "successful_standard_error": 0.08544003745317533
+      },
+      "upper_narrow_width": {
+        "all_count": 16,
+        "all_mean": 0.21000000000000002,
+        "all_standard_error": 0.05000000000000002,
+        "successful_count": 16,
+        "successful_mean": 0.21000000000000002,
+        "successful_standard_error": 0.05000000000000002
+      },
+      "upper_wide_direction": {
+        "all_count": 16,
+        "all_mean": 0.53,
+        "all_standard_error": 0.07962411694957755,
+        "successful_count": 16,
+        "successful_mean": 0.53,
+        "successful_standard_error": 0.07962411694957755
+      },
+      "upper_wide_width": {
+        "all_count": 16,
+        "all_mean": 0.77,
+        "all_standard_error": 0.039242833740697175,
+        "successful_count": 16,
+        "successful_mean": 0.77,
+        "successful_standard_error": 0.039242833740697175
+      },
+      "lower_narrow_direction": {
+        "all_count": 16,
+        "all_mean": 0.4700000000000001,
+        "all_standard_error": 0.07962411694957754,
+        "successful_count": 16,
+        "successful_mean": 0.4700000000000001,
+        "successful_standard_error": 0.07962411694957754
+      },
+      "lower_narrow_width": {
+        "all_count": 16,
+        "all_mean": 0.23000000000000004,
+        "all_standard_error": 0.03924283374069717,
+        "successful_count": 16,
+        "successful_mean": 0.23000000000000004,
+        "successful_standard_error": 0.03924283374069717
+      },
+      "lower_wide_direction": {
+        "all_count": 16,
+        "all_mean": 0.6100000000000001,
+        "all_standard_error": 0.08544003745317533,
+        "successful_count": 16,
+        "successful_mean": 0.6100000000000001,
+        "successful_standard_error": 0.08544003745317533
+      },
+      "lower_wide_width": {
+        "all_count": 16,
+        "all_mean": 0.79,
+        "all_standard_error": 0.05000000000000001,
+        "successful_count": 16,
+        "successful_mean": 0.79,
+        "successful_standard_error": 0.05000000000000001
+      }
+    },
+    "target_mode": "upper_wide",
+    "successful_target_count": 6,
+    "successful_target_rate": 0.375,
+    "successful_target_wilson_95": [
+      0.18480982554752806,
+      0.613593529020652
+    ],
+    "mode_denominator": 16,
+    "mode_counts": {
+      "upper_narrow": 1,
+      "upper_wide": 6,
+      "lower_narrow": 0,
+      "lower_wide": 9,
+      "other": 0
+    },
+    "successful_mode_denominator": 16,
+    "successful_mode_counts": {
+      "upper_narrow": 1,
+      "upper_wide": 6,
+      "lower_narrow": 0,
+      "lower_wide": 9,
+      "other": 0
+    },
+    "artifact": "gaussian__upper_wide_direction__best__m128.npz",
+    "completion_marker": "gaussian__upper_wide_direction__best__m128.complete.json",
+    "regime": "gaussian",
+    "profile": "upper_wide_direction",
+    "method": "best",
+    "M": 128,
+    "preference": {
+      "weights": [
+        [
+          0.9,
+          0.09999999999999998
+        ],
+        [
+          0.9,
+          0.09999999999999998
+        ]
+      ],
+      "alpha": [
+        0.8,
+        0.2
+      ]
+    },
+    "proposal_std": 1.0,
+    "task_failure_count": 0,
+    "elapsed_seconds": 13.650784474040847
+  }
+}

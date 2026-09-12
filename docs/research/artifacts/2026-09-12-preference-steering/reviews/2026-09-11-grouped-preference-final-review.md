@@ -1,0 +1,18 @@
+# Final broad review — grouped preference steering
+
+Verdict: **PASS**. No actionable P0/P1/P2/P3 findings. No open or deferred implementation findings identified within the approved two-group pilot scope.
+
+Reviewed the complete `final-review.diff`, approved design, progress ledger, grouped fitting/evaluator/runner interfaces, shared executor changes, new tests, scientific report, supporting analysis scripts and saved result summaries. Also checked the root formulation's scope note and Section 2.3 against the repository's original SFPS and rollout conventions. This was a read-only product review; this review record is the only file written. Existing B2/flat work and HEAD were not changed.
+
+Cross-module conclusions:
+
+- Direction/width scoped Bradley–Terry likelihoods omit alpha; overall comparisons use alpha. Query generation is independent of hidden user weights, preserves nested budgets, and exposes the intended scope counts. Simplex fitting reports numerical convergence and local rank without claiming global optimization or identification from overall-only data.
+- Each current candidate is integrated once on the ordinary execution path, with its accepted current prefix held fixed across separately seeded future continuations. Full-option features and task costs are averaged before the categorical exponential. Current failures are ineligible; later failures remain in the denominator; completed goal misses retain geometry. Actual Gym executes only the selected current commands. Raw base selection and all-invalid guided hold behavior remain distinct.
+- The original normalized-observation action anchor, anchor-inclusive horizon 16, prediction of nine points, and execution of indices 1 through 8 agree across the code and report. Physical observations and action-unnormalized model anchors are explicitly distinguished. Shared executor defaults retain full-horizon behavior, and the new optional diagnostic field preserves existing positional construction compatibility.
+- Current hashes of all five implementation files listed in `implementation_manifest.json` match the evaluated source hashes. Saved diagnostics confirm policy/statistics immutability, 36 conditions and 576 episodes, with the independent audit recording 576 replays and 4,608 checked decisions.
+- Independently recomputed the report's 16 learned utility gains and mode-count comparisons from saved condition summaries, and checked learned alpha values. All match the table after rounding. The saved paired bootstrap results confirm eight learned intervals contain zero. The 640-fit summaries match the reported learning table and convergence counts. The continuation diagnostic correctly describes its correlated finite L64 reference and does not claim true-Q error or closed-loop superiority.
+- Inspected the existing full-suite log: 366 passed, 2 skipped, 14 warnings in 92.96 seconds. Inspected the relevant new tests and prior verification record; did not rerun the already passed suite or canonical experiment.
+
+Material limitations remain scientifically relevant but are disclosed, not unresolved defects: this is synthetic feedback over eight designed profiles, with one feedback seed for closed-loop inference and 16 paired episode seeds per condition; finite candidate coverage and finite-L exponential bias remain; continuous feature utility does not guarantee the named midpoint modes; centered wide-mode control is absent; Gaussian paths strongly retain the initial branch; and batch timing is not single-robot real-time latency. The report appropriately avoids claims of general human preference learning, solved mode control, exact Gibbs sampling, or completed VRHandover validation.
+
+No branch integration was requested or performed.

@@ -1,0 +1,84 @@
+{
+  "checkpoint_digest": "4228d9dae9baedc8b64d66ffb4d768798731f2c6788efea681dc18d745e2abba",
+  "proposal_std": 16.0,
+  "episodes": 16,
+  "L": 4,
+  "results": {
+    "centered__M128": {
+      "seconds": 3.057333540986292,
+      "successful_futures": 2373,
+      "current_valid": 598,
+      "successful_mode_counts": {
+        "upper_narrow": 667,
+        "upper_wide": 207,
+        "lower_narrow": 498,
+        "lower_wide": 322,
+        "other": 679
+      },
+      "context_coverage": {
+        "upper_narrow": 16,
+        "upper_wide": 16,
+        "lower_narrow": 16,
+        "lower_wide": 16,
+        "other": 16
+      }
+    },
+    "centered__M512": {
+      "seconds": 3.0954560359823518,
+      "successful_futures": 9101,
+      "current_valid": 2290,
+      "successful_mode_counts": {
+        "upper_narrow": 2624,
+        "upper_wide": 842,
+        "lower_narrow": 1982,
+        "lower_wide": 1127,
+        "other": 2526
+      },
+      "context_coverage": {
+        "upper_narrow": 16,
+        "upper_wide": 16,
+        "lower_narrow": 16,
+        "lower_wide": 16,
+        "other": 16
+      }
+    },
+    "gaussian__M128": {
+      "seconds": 2.7780229070340283,
+      "successful_futures": 2319,
+      "current_valid": 598,
+      "successful_mode_counts": {
+        "upper_narrow": 412,
+        "upper_wide": 513,
+        "lower_narrow": 454,
+        "lower_wide": 581,
+        "other": 359
+      },
+      "context_coverage": {
+        "upper_narrow": 15,
+        "upper_wide": 13,
+        "lower_narrow": 15,
+        "lower_wide": 13,
+        "other": 16
+      }
+    },
+    "gaussian__M512": {
+      "seconds": 3.0314718810259365,
+      "successful_futures": 8886,
+      "current_valid": 2287,
+      "successful_mode_counts": {
+        "upper_narrow": 1669,
+        "upper_wide": 1999,
+        "lower_narrow": 1707,
+        "lower_wide": 2145,
+        "other": 1366
+      },
+      "context_coverage": {
+        "upper_narrow": 16,
+        "upper_wide": 15,
+        "lower_narrow": 16,
+        "lower_wide": 16,
+        "other": 16
+      }
+    }
+  }
+}

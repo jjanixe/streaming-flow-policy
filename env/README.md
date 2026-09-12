@@ -1,5 +1,80 @@
 # PointReach2DPreference Stage A
 
+## Few-shot preference steering pilot
+
+`env.run_preference` adds a synthetic-user experiment around a **frozen** B2
+SFPS checkpoint. It fits only two utility weights from whole-trajectory A/B
+comparisons, then selects full future latent continuations at each replan.
+The original B2 training and prediction API are reused.
+
+The completed seed-0 pilot, coverage limits, uncertainty, and verification are
+recorded in [the measured results](../docs/research/2026-09-11-preference-steering-results.md).
+
+From this worktree, run:
+
+```bash
+uv run --frozen python -m env.run_preference \
+  --checkpoint env/artifacts/stage_b/b2-seed0-optimized/sfps_best.pt \
+  --stats env/artifacts/stage_b/b2-seed0-optimized/pusht_stats.npz \
+  --demonstrations ../../env/artifacts/demonstrations.npz \
+  --output-dir env/artifacts/preference/pilot-seed0 \
+  --device cuda:1 --seed 0 --candidates 32 --coverage-count 512 \
+  --rollout-count 16 --integration-steps-per-action 6 --torch-threads 1
+```
+
+Use `--device cpu` for a CPU run and a new output directory for every run.
+The demonstrated relative demonstration path assumes this checkout is the
+existing project-local `.worktrees/stage-b2-sfps` worktree; otherwise pass the
+path to the saved Stage A demonstration bank. Its train digest must match the
+checkpoint and normalization statistics.
+
+The experiment first samples 512 continuations independently at the centered
+start and at each of two fixed Gaussian starts. It then evaluates centered and
+Gaussian closed-loop episodes for base, task-only soft selection, oracle soft
+and best selection, and learned soft selection at 5/10/20/40 noisy comparisons
+for four synthetic users. Every condition shares evaluation starts and indexed
+proposal randomness. Each of 32 candidates rolls out the **remaining episode**,
+refreshing history every eight actions. Only the chosen first eight commands
+are executed through Gym. The realized prefix stays fixed; whole-trajectory
+labels are never copied onto individual chunks.
+
+The score is `w @ normalized_full_path_features - (goal_error / 0.1)**2`.
+Candidates with numerical or action-limit failures have zero selection mass.
+If no candidate is valid, candidate zero is used as a recorded fallback; actual
+Gym execution still rejects invalid commands. Goal tolerance is a soft cost,
+not a success guarantee. Base always uses candidate zero with one proposal.
+
+The output contains strict JSON diagnostics/configuration, pickle-free NPZ
+comparison data/weights/rollouts, the train-fitted feature normalizer, selected
+future trajectories and latent schedules, candidate scores/validity/ESS,
+failure counts, checkpoint digest, and utility/success/trajectory PNGs.
+Incomplete paths have unavailable full-path utility and remain in failure
+denominators. Utility plots condition on successful episodes; their bands are
+episode standard errors for **one fitted preference dataset per user**, not
+uncertainty over repeated human feedback. Success Wilson intervals are in JSON.
+
+This is finite-candidate resampling, not gradient guidance or exact sampling.
+Batch replan timings include a cohort of parallel episodes and are not
+single-robot control latency; base uses fewer proposals than steered conditions.
+Same-state candidate coverage must be examined before claiming named-mode
+control. Arrays and models are float32; the tiny BT Newton solver and softmax
+normalization use float64 internal arithmetic for numerical stability.
+
+To fit real A/B feedback after converting completed trajectories with the saved
+feature normalizer, call:
+
+```python
+from env.preference import fit_bradley_terry
+
+# delta_features[i] = phi(trajectory_A) - phi(trajectory_B)
+# labels[i] = +1 for A preferred, -1 for B preferred; no ties in this API.
+fit = fit_bradley_terry(delta_features, labels, l2=0.1)
+```
+
+The solver reports convergence and feature-difference rank. Few comparisons do
+not identify preference directions that the queries never vary. A zero prior
+is a regularizer, not a population prior learned from other users.
+
 This package implements Stage A of the preference-guided streaming-policy toy
 example. It contains the Gym environment, analytic demonstrations and fields,
 feature normalization, ODE/SDE samplers, and reproducible diagnostics.
@@ -172,6 +247,28 @@ generates a nine-position chunk while executing the next eight positions. The
 environment RNG and latent RNG are stored separately, and each chunk latent is
 saved in the pickle-free rollout artifact.
 
+The expert action windows are normalized and materialized once before either
+Stage B training loop. Training then samples all times, noise, and trajectory
+targets for a minibatch directly as float32 Torch tensors on the selected
+device. The uniform 16-knot first-order-hold calculation is algebraically the
+same trajectory that Drake constructs and is regression-tested against Drake,
+but it avoids constructing one CPU Drake object per sample. Held-out validation
+still uses `PiecewisePolynomial.FirstOrderHold` through Drake as the independent
+reference. Drake receives float64 knot times and values at that API boundary;
+its positions and derivatives are immediately converted back to float32. The
+learned model, losses, optimizer state, ODE solve, and rollout artifacts remain
+float32.
+
+On CUDA, the training loader follows the repository PushT setup with one
+persistent worker and pinned memory. The pre-materialized windows remove the
+remaining repeated NumPy indexing and normalization work from that worker. B2
+evaluation also solves all currently active rollouts together at each chunk
+boundary. Every rollout still has its own environment RNG and Torch latent RNG,
+so the saved seed and latent provenance is unchanged. Because an adaptive ODE
+solver can make slightly different step-size choices for different batch
+compositions, exact replay means rerunning the complete recorded seed batch;
+the run command performs that batch-level replay check.
+
 Gaussian-initialized rollouts measure ordinary closed-loop behavior. The
 centered diagnostic fixes the initial environment state and varies only latent
 seeds, directly reporting unique raw and executed trajectories and midpoint
@@ -184,3 +281,79 @@ but it does not select a named mode on command.
 ~~~bash
 uv run pytest env/tests -q
 ~~~
+
+## Grouped few-shot preference steering
+
+The grouped pilot uses exactly `direction=(upper, lower)` and
+`width=(wide, narrow)`. It fits within-group simplex weights and a separate
+between-group importance simplex from scoped Bradley–Terry feedback. Twenty
+judgments comprise six direction, six width, and eight overall comparisons.
+Group-specific comparisons exclude the between-group importance. P/M/C are not
+part of this toy experiment.
+
+The conditional evaluator holds each current latent's eight-command prefix
+fixed and averages four independent base-policy continuations before computing
+its exponential selection weight. Default `M=8`, `L=4`, and `beta=rho=16` are
+pilot settings in bounded feature units. The goal/failure cost makes this a
+task-conditioned preference target. It is finite-candidate resampling, not
+exact Gibbs sampling or a gradient update to the flow network.
+
+~~~bash
+.venv/bin/python -m env.run_grouped_preference \
+  --checkpoint env/artifacts/stage_b/b2-seed0-optimized/sfps_best.pt \
+  --stats env/artifacts/stage_b/b2-seed0-optimized/pusht_stats.npz \
+  --demonstrations ../../env/artifacts/demonstrations.npz \
+  --output-dir env/artifacts/grouped_preference/pilot-seed0 \
+  --device cuda:1 --candidates 8 --continuations 4 \
+  --rollout-count 16 --torch-threads 1
+~~~
+
+Run from this B2 worktree; choose a new output directory for each rerun. The
+runner fits nested budgets 5/10/20/40 and evaluates learned-20, oracle-soft,
+task-only, and raw base through actual Gym. It saves scoped feedback, fitting
+diagnostics, current anchors, conditional feature/cost estimates, selected
+latents, requested commands, actual paths, failures, seeds, and frozen-policy
+hashes.
+
+The checkpoint's sixteen prediction points include the anchor. Nine returned
+points give one discarded anchor and eight executed commands, at local times
+0 through 8/15, matching upstream SFPS. Observed physical anchors and raw model
+anchors are recorded separately because observation/action normalization
+statistics can differ. No checkpoint horizon or policy parameters are changed.
+
+Narrow desirability rewards small excursion, including central paths. A higher
+utility therefore does not guarantee the corresponding named midpoint mode.
+See [the formulation, validation, and results](../docs/research/2026-09-11-grouped-preference-results.md)
+for this limitation, numerical checks, inference GIFs, and reproducibility.
+
+### Mode-aligned control and oracle ablation
+
+Use `--feature-kind mode` to align the two grouped desirabilities with the
+four midpoint bins; `other` receives four zeros. Synthetic scoped feedback is
+regenerated for the selected feature kind. `--selection-method best` selects
+the highest-scoring valid current candidate. `--proposal-std` widens guided
+current latent draws while base and hypothetical future draws stay unit normal.
+It changes the proposal distribution; policy weights and the SFPS anchor stay
+fixed. The compatibility defaults remain continuous features, soft selection,
+and proposal standard deviation 1.
+
+~~~bash
+.venv/bin/python -m env.run_grouped_preference \
+  --checkpoint-path env/artifacts/stage_b/b2-seed0-optimized/sfps_best.pt \
+  --stats-path env/artifacts/stage_b/b2-seed0-optimized/pusht_stats.npz \
+  --demonstrations-path ../../env/artifacts/demonstrations.npz \
+  --output-dir env/artifacts/grouped_preference/mode-example \
+  --device cuda:0 --feature-kind mode --selection-method best \
+  --proposal-std 8 --candidates 128 --continuations 4 --rollout-count 16
+~~~
+
+`python -m env.run_mode_ablation` accepts the same checkpoint/stats/data paths,
+`--candidates 8 32 128`, and `--methods soft best` for oracle-only comparisons.
+Its completed conditions resume only after the explicitly listed source
+modules, config, and artifact integrity checks. The source manifest does not
+cover every transitive dependency. Use a new output directory after changing
+any source or settings, including normalization, loader, or seed helpers.
+
+The checked pilot achieved all four centered modes with learned20; Gaussian
+wide modes retain some misses. Counts require both task success and target
+mode. See [the paired experiments and actual inference GIFs](../docs/research/2026-09-12-mode-aligned-steering-results.md).

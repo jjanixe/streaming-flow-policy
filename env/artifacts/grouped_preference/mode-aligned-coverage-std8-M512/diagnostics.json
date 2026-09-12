@@ -1,0 +1,46 @@
+{
+  "checkpoint_digest": "4228d9dae9baedc8b64d66ffb4d768798731f2c6788efea681dc18d745e2abba",
+  "proposal_std": 8.0,
+  "episodes": 16,
+  "L": 4,
+  "results": {
+    "centered__M512": {
+      "seconds": 3.9671660519670695,
+      "successful_futures": 22986,
+      "current_valid": 5768,
+      "successful_mode_counts": {
+        "upper_narrow": 6465,
+        "upper_wide": 1575,
+        "lower_narrow": 5756,
+        "lower_wide": 2519,
+        "other": 6671
+      },
+      "context_coverage": {
+        "upper_narrow": 16,
+        "upper_wide": 16,
+        "lower_narrow": 16,
+        "lower_wide": 16,
+        "other": 16
+      }
+    },
+    "gaussian__M512": {
+      "seconds": 3.69650364597328,
+      "successful_futures": 22400,
+      "current_valid": 5766,
+      "successful_mode_counts": {
+        "upper_narrow": 3776,
+        "upper_wide": 5135,
+        "lower_narrow": 4083,
+        "lower_wide": 6159,
+        "other": 3247
+      },
+      "context_coverage": {
+        "upper_narrow": 16,
+        "upper_wide": 15,
+        "lower_narrow": 16,
+        "lower_wide": 16,
+        "other": 16
+      }
+    }
+  }
+}

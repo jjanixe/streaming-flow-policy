@@ -104,23 +104,22 @@ class _JointConditionedVectorField(nn.Module):
     def forward(self, t: torch.Tensor, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
         if x.dtype != torch.float32 or t.dtype != torch.float32:
             raise ValueError("ODE state and time must have dtype float32")
-        if x.shape != (2, 2):
-            raise ValueError("joint ODE state must have shape [2, 2]")
+        if x.ndim != 3 or x.shape[1:] != (2, 2):
+            raise ValueError("joint ODE state must have shape [B, 2, 2]")
         if t.numel() != 1:
             raise ValueError("ODE time must be scalar")
         if not torch.isfinite(x).all():
             raise PolicyNumericalError("ODE state contains non-finite values")
         if not torch.isfinite(t).all():
             raise PolicyNumericalError("ODE time contains non-finite values")
-        sample = x.unsqueeze(0)
         velocity = self.velocity_net(
-            sample=sample,
-            timestep=t.reshape(1),
+            sample=x,
+            timestep=t.reshape(1).expand(x.shape[0]),
             global_cond=self.condition,
         )
         if not isinstance(velocity, torch.Tensor):
             raise ValueError("velocity network output must be a torch.Tensor")
-        if velocity.shape != sample.shape:
+        if velocity.shape != x.shape:
             raise ValueError("velocity network output shape must match ODE sample")
         if velocity.dtype != torch.float32:
             raise ValueError("velocity network output must have dtype float32")
@@ -130,7 +129,7 @@ class _JointConditionedVectorField(nn.Module):
             raise PolicyNumericalError(
                 "velocity network output contains non-finite values"
             )
-        return velocity.squeeze(0)
+        return velocity
 
 
 def _is_numerical_solver_runtime_error(error: RuntimeError) -> bool:
@@ -410,7 +409,48 @@ class StreamingFlowPolicyStochastic(nn.Module):
             if not torch.isfinite(latent).all():
                 raise ValueError("latent must contain finite values")
 
-        condition = nobs.unsqueeze(0).flatten(start_dim=1)
+        return self.predict_batch(
+            nobs.unsqueeze(0),
+            num_actions=num_actions,
+            integration_steps_per_action=integration_steps_per_action,
+            latents=latent.unsqueeze(0),
+        )
+
+    @torch.inference_mode()
+    def predict_batch(
+        self,
+        nobs: torch.Tensor,
+        num_actions: int,
+        integration_steps_per_action: int,
+        *,
+        latents: torch.Tensor,
+    ) -> torch.Tensor:
+        """Integrate multiple explicit action-latent initial states together."""
+        _require_float32_tensor(nobs, "nobs")
+        _require_float32_tensor(latents, "latents")
+        if nobs.ndim != 3 or nobs.shape[1:] != (2, 3):
+            raise ValueError("nobs shape must be [B, 2, 3]")
+        if latents.shape != (nobs.shape[0], 2):
+            raise ValueError("latents shape must be [B, 2]")
+        if not torch.isfinite(nobs).all() or not torch.isfinite(latents).all():
+            raise ValueError("nobs and latents must contain finite values")
+        if not isinstance(num_actions, int) or isinstance(num_actions, bool):
+            raise ValueError("num_actions must be an integer")
+        if not 1 <= num_actions <= self.pred_horizon.item():
+            raise ValueError("num_actions must be in [1, 16]")
+        if (
+            not isinstance(integration_steps_per_action, int)
+            or isinstance(integration_steps_per_action, bool)
+            or integration_steps_per_action <= 0
+        ):
+            raise ValueError("integration_steps_per_action must be positive")
+        if nobs.device != self.device or latents.device != self.device:
+            raise ValueError("nobs, latents, and policy must share a device")
+        self._validate_model_device(nobs.device)
+        if num_actions == 1:
+            return nobs[:, -1:, :2]
+
+        condition = nobs.flatten(start_dim=1)
         num_future_actions = num_actions - 1
         t_max = num_future_actions / (self.pred_horizon.item() - 1)
         total_steps = 1 + num_future_actions * integration_steps_per_action
@@ -428,7 +468,7 @@ class StreamingFlowPolicyStochastic(nn.Module):
             atol=1e-4,
             rtol=1e-4,
         )
-        initial_state = torch.stack((nobs[-1, :2], latent), dim=0)
+        initial_state = torch.stack((nobs[:, -1, :2], latents), dim=1)
         try:
             trajectory = solver.trajectory(x=initial_state, t_span=t_span)
         except PolicyNumericalError:
@@ -439,7 +479,7 @@ class StreamingFlowPolicyStochastic(nn.Module):
             if _is_numerical_solver_runtime_error(error):
                 raise PolicyNumericalError(str(error)) from error
             raise
-        expected_shape = (total_steps, 2, 2)
+        expected_shape = (total_steps, nobs.shape[0], 2, 2)
         if not isinstance(trajectory, torch.Tensor):
             raise ValueError("ODE trajectory must be a torch.Tensor")
         if trajectory.shape != expected_shape:
@@ -458,4 +498,4 @@ class StreamingFlowPolicyStochastic(nn.Module):
             integration_steps_per_action,
             device=nobs.device,
         )
-        return trajectory[indices, 0, :].unsqueeze(0)
+        return trajectory[indices, :, 0, :].permute(1, 0, 2)

@@ -1,8 +1,10 @@
 """Drake-backed trajectory targets for normalized PushT action windows."""
 
+import math
 from typing import Any
 
 import numpy as np
+import torch
 
 
 def _validate_action(action: np.ndarray) -> None:
@@ -46,6 +48,128 @@ def evaluate_drake_foh(
     except Exception as error:
         raise RuntimeError("Drake FirstOrderHold evaluation failed") from error
     return position, derivative
+
+
+def evaluate_uniform_foh_batch(
+    actions: torch.Tensor,
+    times: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Evaluate Drake-equivalent uniform 16-knot FOHs as one Torch batch."""
+    if not isinstance(actions, torch.Tensor) or actions.shape[1:] != (16, 2):
+        raise ValueError("actions must be a torch.Tensor with shape [B, 16, 2]")
+    if actions.dtype != torch.float32:
+        raise ValueError("actions must use float32")
+    if not isinstance(times, torch.Tensor) or times.shape != (actions.shape[0],):
+        raise ValueError("times must be a torch.Tensor with shape [B]")
+    if times.dtype != torch.float32:
+        raise ValueError("times must use float32")
+    if times.device != actions.device:
+        raise ValueError("actions and times must share a device")
+    if not torch.isfinite(actions).all() or not torch.isfinite(times).all():
+        raise ValueError("actions and times must contain finite values")
+    if torch.any((times < 0.0) | (times > 1.0)):
+        raise ValueError("times must be in [0, 1]")
+
+    scaled_times = times * 15.0
+    lower_indices = torch.floor(scaled_times).to(torch.int64).clamp(max=14)
+    batch_indices = torch.arange(actions.shape[0], device=actions.device)
+    left = actions[batch_indices, lower_indices]
+    right = actions[batch_indices, lower_indices + 1]
+    alpha = (scaled_times - lower_indices.to(torch.float32)).unsqueeze(1)
+    positions = ((1.0 - alpha) * left + alpha * right).unsqueeze(1)
+    derivatives = (15.0 * (right - left)).unsqueeze(1)
+    return positions, derivatives
+
+
+def sample_sfps_training_targets(
+    actions: torch.Tensor,
+    *,
+    sigma0: float,
+    sigma1: float,
+    generator: torch.Generator,
+) -> dict[str, torch.Tensor]:
+    """Sample one vectorized SFPS target per normalized action window."""
+    if not math.isfinite(sigma0) or not math.isfinite(sigma1):
+        raise ValueError("sigma0 and sigma1 must be finite")
+    if not 0.0 <= sigma0 <= sigma1:
+        raise ValueError("sigma0 and sigma1 must satisfy 0 <= sigma0 <= sigma1")
+    if not isinstance(generator, torch.Generator):
+        raise ValueError("generator must be a torch.Generator")
+    if not isinstance(actions, torch.Tensor):
+        raise ValueError("actions must be a torch.Tensor")
+    if torch.device(generator.device) != actions.device:
+        raise ValueError("generator and actions must share a device")
+
+    batch_size = actions.shape[0]
+    times = torch.rand(
+        (batch_size,),
+        dtype=torch.float32,
+        device=actions.device,
+        generator=generator,
+    )
+    xi, xi_dot = evaluate_uniform_foh_batch(actions, times)
+    z0 = torch.randn(
+        (batch_size, 1, 2),
+        dtype=torch.float32,
+        device=actions.device,
+        generator=generator,
+    )
+    epsilon_a0 = float(sigma0) * torch.randn(
+        (batch_size, 1, 2),
+        dtype=torch.float32,
+        device=actions.device,
+        generator=generator,
+    )
+    sigma_r = math.sqrt(sigma1**2 - sigma0**2)
+    expanded_times = times[:, None, None]
+    action = xi + epsilon_a0 + sigma_r * expanded_times * z0
+    latent = (1.0 - (1.0 - sigma1) * expanded_times) * z0 + expanded_times * xi
+    action_velocity = xi_dot + sigma_r * z0
+    latent_velocity = xi + expanded_times * xi_dot - (1.0 - sigma1) * z0
+    return {
+        "a": action,
+        "z": latent,
+        "va": action_velocity,
+        "vz": latent_velocity,
+        "t": times,
+    }
+
+
+def sample_sfpd_training_targets(
+    actions: torch.Tensor,
+    *,
+    sigma: float,
+    generator: torch.Generator,
+) -> dict[str, torch.Tensor]:
+    """Sample one vectorized SFPD target per normalized action window."""
+    if not math.isfinite(sigma) or sigma < 0.0:
+        raise ValueError("sigma must be finite and nonnegative")
+    if not isinstance(generator, torch.Generator):
+        raise ValueError("generator must be a torch.Generator")
+    if not isinstance(actions, torch.Tensor):
+        raise ValueError("actions must be a torch.Tensor")
+    if torch.device(generator.device) != actions.device:
+        raise ValueError("generator and actions must share a device")
+
+    batch_size = actions.shape[0]
+    times = torch.rand(
+        (batch_size,),
+        dtype=torch.float32,
+        device=actions.device,
+        generator=generator,
+    )
+    xi, xi_dot = evaluate_uniform_foh_batch(actions, times)
+    noise = torch.randn(
+        (batch_size, 1, 2),
+        dtype=torch.float32,
+        device=actions.device,
+        generator=generator,
+    )
+    return {
+        "x": xi + float(sigma) * noise,
+        "v": xi_dot,
+        "t": times,
+    }
 
 
 class SFPDDrakeTransform:

@@ -1,0 +1,230 @@
+{
+  "centered": {
+    "upper_narrow_direction__learned_20": {
+      "mean_gain": 0.046451505867219606,
+      "paired_bootstrap_95": [
+        0.016101848792702704,
+        0.08054913252221008
+      ]
+    },
+    "upper_narrow_width__learned_20": {
+      "mean_gain": 0.015351667505826477,
+      "paired_bootstrap_95": [
+        -0.004525171281886682,
+        0.04242863231870299
+      ]
+    },
+    "upper_wide_direction__learned_20": {
+      "mean_gain": 0.05329428713947649,
+      "paired_bootstrap_95": [
+        0.027751831755666315,
+        0.07995731349543944
+      ]
+    },
+    "upper_wide_width__learned_20": {
+      "mean_gain": 0.015295580104728358,
+      "paired_bootstrap_95": [
+        -0.008514965265974235,
+        0.04158513307393755
+      ]
+    },
+    "lower_narrow_direction__learned_20": {
+      "mean_gain": 0.04151426001870266,
+      "paired_bootstrap_95": [
+        0.015376303629228287,
+        0.07055960903529312
+      ]
+    },
+    "lower_narrow_width__learned_20": {
+      "mean_gain": 0.022628510740251108,
+      "paired_bootstrap_95": [
+        0.0035313201086931457,
+        0.04305658537920375
+      ]
+    },
+    "lower_wide_direction__learned_20": {
+      "mean_gain": 0.04320638846069578,
+      "paired_bootstrap_95": [
+        0.016265111352275638,
+        0.07450548944968752
+      ]
+    },
+    "lower_wide_width__learned_20": {
+      "mean_gain": 0.02101956843664266,
+      "paired_bootstrap_95": [
+        -0.0019799771135372408,
+        0.04826142172012733
+      ]
+    },
+    "upper_narrow_direction__oracle_soft": {
+      "mean_gain": 0.046451505867219606,
+      "paired_bootstrap_95": [
+        0.016791940401694818,
+        0.08108431244472997
+      ]
+    },
+    "upper_narrow_width__oracle_soft": {
+      "mean_gain": 0.013030039547263936,
+      "paired_bootstrap_95": [
+        -0.0017879580967616812,
+        0.03519511049286696
+      ]
+    },
+    "upper_wide_direction__oracle_soft": {
+      "mean_gain": 0.047904075219705355,
+      "paired_bootstrap_95": [
+        0.022430031743632436,
+        0.07504649785310756
+      ]
+    },
+    "upper_wide_width__oracle_soft": {
+      "mean_gain": 0.020816260159462214,
+      "paired_bootstrap_95": [
+        0.005574551250023891,
+        0.03920774492279905
+      ]
+    },
+    "lower_narrow_direction__oracle_soft": {
+      "mean_gain": 0.035150994484939774,
+      "paired_bootstrap_95": [
+        0.012440832930948074,
+        0.05981316740927568
+      ]
+    },
+    "lower_narrow_width__oracle_soft": {
+      "mean_gain": 0.016970735446158902,
+      "paired_bootstrap_95": [
+        -0.0009487425487925832,
+        0.036651917058080824
+      ]
+    },
+    "lower_wide_direction__oracle_soft": {
+      "mean_gain": 0.032762229345066216,
+      "paired_bootstrap_95": [
+        -0.0014685143139091797,
+        0.06771432812215364
+      ]
+    },
+    "lower_wide_width__oracle_soft": {
+      "mean_gain": 0.018990872486721697,
+      "paired_bootstrap_95": [
+        -0.003945404233036394,
+        0.0452726909819068
+      ]
+    }
+  },
+  "gaussian": {
+    "upper_narrow_direction__learned_20": {
+      "mean_gain": 0.013016103838557402,
+      "paired_bootstrap_95": [
+        0.0,
+        0.030512644656038434
+      ]
+    },
+    "upper_narrow_width__learned_20": {
+      "mean_gain": 0.01902597327972418,
+      "paired_bootstrap_95": [
+        -0.015359521207144133,
+        0.05317240861927052
+      ]
+    },
+    "upper_wide_direction__learned_20": {
+      "mean_gain": 0.004351818190326574,
+      "paired_bootstrap_95": [
+        -0.00012348882971863206,
+        0.010954915947738723
+      ]
+    },
+    "upper_wide_width__learned_20": {
+      "mean_gain": 0.019611728867612744,
+      "paired_bootstrap_95": [
+        0.005508585495280809,
+        0.03648880983222291
+      ]
+    },
+    "lower_narrow_direction__learned_20": {
+      "mean_gain": 0.0015571670638830845,
+      "paired_bootstrap_95": [
+        -0.0016068663669716252,
+        0.005447016128031602
+      ]
+    },
+    "lower_narrow_width__learned_20": {
+      "mean_gain": 0.023135229759730615,
+      "paired_bootstrap_95": [
+        0.002079846654482831,
+        0.04802173314236625
+      ]
+    },
+    "lower_wide_direction__learned_20": {
+      "mean_gain": 0.001435687978784267,
+      "paired_bootstrap_95": [
+        0.0,
+        0.004307063936352801
+      ]
+    },
+    "lower_wide_width__learned_20": {
+      "mean_gain": 0.02144646122354724,
+      "paired_bootstrap_95": [
+        0.0060044150212107145,
+        0.041168817235608036
+      ]
+    },
+    "upper_narrow_direction__oracle_soft": {
+      "mean_gain": 0.0071852245065736516,
+      "paired_bootstrap_95": [
+        -0.0012116872653360963,
+        0.021659080330586358
+      ]
+    },
+    "upper_narrow_width__oracle_soft": {
+      "mean_gain": 0.02466207569630861,
+      "paired_bootstrap_95": [
+        0.0027705136669602393,
+        0.05370155116532203
+      ]
+    },
+    "upper_wide_direction__oracle_soft": {
+      "mean_gain": 0.004267990776074204,
+      "paired_bootstrap_95": [
+        0.0,
+        0.011086589901828918
+      ]
+    },
+    "upper_wide_width__oracle_soft": {
+      "mean_gain": 0.019654803393102233,
+      "paired_bootstrap_95": [
+        0.005975616360793322,
+        0.03620701836011592
+      ]
+    },
+    "lower_narrow_direction__oracle_soft": {
+      "mean_gain": 0.0013260006581399912,
+      "paired_bootstrap_95": [
+        -0.0016511204060638968,
+        0.005254658497384511
+      ]
+    },
+    "lower_narrow_width__oracle_soft": {
+      "mean_gain": 0.02037290630558568,
+      "paired_bootstrap_95": [
+        0.00043951177970112394,
+        0.04538997405655104
+      ]
+    },
+    "lower_wide_direction__oracle_soft": {
+      "mean_gain": 0.0039042018795982097,
+      "paired_bootstrap_95": [
+        0.0,
+        0.009874055603255771
+      ]
+    },
+    "lower_wide_width__oracle_soft": {
+      "mean_gain": 0.02149754312969814,
+      "paired_bootstrap_95": [
+        0.005860616074098841,
+        0.041914914822198855
+      ]
+    }
+  }
+}

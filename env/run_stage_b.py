@@ -31,7 +31,6 @@ from env.evaluate_stage_b import (
     evaluate_sfpd,
     evaluate_sfps,
     rollout_sfpd,
-    rollout_sfps,
 )
 from env.run_stage_a import classify_midpoint_modes
 from env.stage_b_artifacts import (
@@ -562,7 +561,9 @@ def write_stage_b1_outputs(
         "accepted": not failures,
         "failures": failures,
         "dtypes": {
-            "drake_interpolation_boundary": "float64",
+            "training_foh_and_targets": "float32",
+            "drake_validation_internal_boundary": "float64",
+            "drake_validation_output": "float32",
             "learned_model_and_ode": "float32",
             "rollout_arrays": "float32",
         },
@@ -1007,7 +1008,9 @@ def write_stage_b2_outputs(
         "accepted": not failures,
         "failures": failures,
         "dtypes": {
-            "drake_interpolation_boundary": "float64",
+            "training_foh_and_targets": "float32",
+            "drake_validation_internal_boundary": "float64",
+            "drake_validation_output": "float32",
             "learned_model_and_ode": "float32",
             "rollout_arrays": "float32",
         },
@@ -1112,16 +1115,24 @@ def run_stage_b2(
         config,
         training.seed_streams["checkpoint_replay"],
     )
-    replay = rollout_sfps(
+    _, replay_batch = evaluate_sfps(
         policy,
         stats,
         DEFAULT_CONFIG.environment,
-        environment_seed=environment_seeds[0],
-        latent_seed=latent_seeds[0],
+        environment_seeds,
+        latent_seeds,
         center_init=False,
         integration_steps_per_action=config.integration_steps_per_action,
     )
-    seeded_replay = _sfps_rollout_equal(gaussian_rollouts.rollouts[0], replay)
+    seeded_replay = len(gaussian_rollouts.rollouts) == len(
+        replay_batch.rollouts
+    ) and all(
+        _sfps_rollout_equal(first, replay)
+        for first, replay in zip(
+            gaussian_rollouts.rollouts,
+            replay_batch.rollouts,
+        )
+    )
     return write_stage_b2_outputs(
         destination,
         bank,

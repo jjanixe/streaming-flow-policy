@@ -1,0 +1,40 @@
+{
+  "date": "2026-09-12",
+  "branch": "codex/stage-b2-sfps",
+  "base_commit": "cfb18894bbc51446668554da365bdc147b128ccc",
+  "env_tests": {
+    "passed": 389,
+    "skipped": 2,
+    "warnings": 15,
+    "seconds": 103.06,
+    "log": "env-tests.log"
+  },
+  "published_input_cpu_inference": {
+    "passed": true,
+    "output_shape": [
+      1,
+      9,
+      2
+    ],
+    "normalized_anchor_exact": true,
+    "demonstration_train_digest": "3fb4d5e8f79027bf1c113c8a85d48b82e30e43e707b8c895be96b9ab49d82e78"
+  },
+  "compact_export": {
+    "conditions": 208,
+    "episodes": 3328,
+    "original_array_equality": true,
+    "documented_example_pass": true
+  },
+  "git_artifact_manifest_match": true,
+  "git_artifact_hashes_match": true,
+  "markdown_local_git_links_checked": 114,
+  "whitespace_check": "PASS excluding original generated SVG/CSV formatting to preserve artifact bytes and hashes",
+  "no_file_over_100_MiB": true,
+  "remaining_research_limitations": [
+    "Gaussian wide remains partially uncontrolled",
+    "synthetic feedback and exploratory16seeds",
+    "base/future unit-normal but guided current proposal std8",
+    "full grouped future banks local-only",
+    "ablation resume hashes8listed source modules only"
+  ]
+}

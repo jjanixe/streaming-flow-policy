@@ -1,0 +1,50 @@
+{
+  "overall_ordering_accuracy_5": [
+    0.8700980392156861,
+    0.8779411764705884
+  ],
+  "overall_ordering_accuracy_10": [
+    0.9827205882352942,
+    1.0
+  ],
+  "overall_ordering_accuracy_20": [
+    1.0,
+    1.0
+  ],
+  "overall_ordering_accuracy_40": [
+    1.0,
+    1.0
+  ],
+  "priority_correct_5": [
+    0.75,
+    0.75
+  ],
+  "priority_correct_10": [
+    0.9625,
+    1.0
+  ],
+  "priority_correct_20": [
+    1.0,
+    1.0
+  ],
+  "priority_correct_40": [
+    1.0,
+    1.0
+  ],
+  "alpha_error_5": [
+    0.1856601834268888,
+    0.18566018357398212
+  ],
+  "alpha_error_10": [
+    0.0906166283609493,
+    0.10591434959781705
+  ],
+  "alpha_error_20": [
+    0.08974639353541403,
+    0.0927713614865184
+  ],
+  "alpha_error_40": [
+    0.089662221626793,
+    0.09194583755464039
+  ]
+}

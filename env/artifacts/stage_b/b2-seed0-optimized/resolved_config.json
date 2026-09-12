@@ -1,0 +1,57 @@
+{
+  "device": "cuda:1",
+  "environment": {
+    "goal": [
+      1.0,
+      0.0
+    ],
+    "goal_tolerance": 0.1,
+    "horizon_steps": 64,
+    "initial_sigma": 0.04,
+    "max_step_distance": 0.075,
+    "physical_duration_s": 2.0,
+    "start": [
+      -1.0,
+      0.0
+    ],
+    "visualization_x": [
+      -1.3,
+      1.3
+    ],
+    "visualization_y": [
+      -0.9,
+      0.9
+    ]
+  },
+  "environment_id": "PointReach2DPreference-v0",
+  "format_version": 1,
+  "model_type": "sfps",
+  "stage": "b2",
+  "stage_b2": {
+    "action_horizon": 8,
+    "batch_size": 1024,
+    "ema_decay": 0.999,
+    "hidden_dim": 128,
+    "hidden_layers": 3,
+    "integration_steps_per_action": 6,
+    "latent_dim": 2,
+    "learning_rate": 0.0001,
+    "max_updates": 20000,
+    "obs_horizon": 2,
+    "pred_horizon": 16,
+    "rollout_count": 1024,
+    "sigma0": 0.1,
+    "sigma1": 0.1,
+    "validation_interval": 1000,
+    "warmup_updates": 500,
+    "weight_decay": 1e-06
+  },
+  "versions": {
+    "drake": "1.26.0",
+    "gym": "0.26.2",
+    "numpy": "1.26.4",
+    "python": "3.10.0",
+    "torch": "2.7.1+cu126",
+    "torchdyn": "1.0.6"
+  }
+}

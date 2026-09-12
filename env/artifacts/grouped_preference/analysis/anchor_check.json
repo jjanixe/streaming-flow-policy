@@ -1,0 +1,21 @@
+{
+  "output_shape": [
+    8,
+    9,
+    2
+  ],
+  "normalized_anchor_max_error": 0.0,
+  "physical_anchor_max_error": 7.450580596923828e-05,
+  "model_anchor": [
+    -0.9999254941940308,
+    -5.960464477539063e-08
+  ],
+  "observed_anchor": [
+    -1.0,
+    0.0
+  ],
+  "current_eight_step_endpoint_std": [
+    0.0030046673491597176,
+    0.014808380044996738
+  ]
+}

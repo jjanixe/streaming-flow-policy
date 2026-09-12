@@ -1,0 +1,1020 @@
+{
+  "source": "/home/janice9902/starlab/forked/streaming-flow-policy/.worktrees/stage-b2-sfps/env/artifacts/grouped_preference/pilot-seed0",
+  "scope": "Saved first-decision candidate bank; no new closed-loop inference.",
+  "caveats": [
+    "Finite-bank absence is not proof of zero probability under every latent.",
+    "L=4 futures share each current chunk; 512 is not 512 independent candidates.",
+    "Fixed-bank mode probability is not a closed-loop control upper bound.",
+    "Synthetic oracle weights are used for the selector diagnostic."
+  ],
+  "regimes": {
+    "centered": {
+      "episodes": 16,
+      "M": 8,
+      "L": 4,
+      "complete_futures": 512,
+      "successful_futures": 512,
+      "complete_mode_counts": {
+        "upper_narrow": 78,
+        "upper_wide": 0,
+        "lower_narrow": 98,
+        "lower_wide": 0,
+        "other": 336
+      },
+      "successful_mode_counts": {
+        "upper_narrow": 78,
+        "upper_wide": 0,
+        "lower_narrow": 98,
+        "lower_wide": 0,
+        "other": 336
+      },
+      "episodes_with_any_successful_target_future": {
+        "upper_narrow": 12,
+        "upper_wide": 0,
+        "lower_narrow": 13,
+        "lower_wide": 0,
+        "other": 16
+      },
+      "episodes_detail": [
+        {
+          "episode": 0,
+          "initial_position": [
+            -1.0,
+            0.0
+          ],
+          "midpoint_y_min": -0.2802373468875885,
+          "midpoint_y_max": 0.1675969362258911,
+          "complete_mode_counts": {
+            "upper_narrow": 4,
+            "upper_wide": 0,
+            "lower_narrow": 8,
+            "lower_wide": 0,
+            "other": 20
+          }
+        },
+        {
+          "episode": 1,
+          "initial_position": [
+            -1.0,
+            0.0
+          ],
+          "midpoint_y_min": -0.2984364330768585,
+          "midpoint_y_max": 0.12045848369598389,
+          "complete_mode_counts": {
+            "upper_narrow": 1,
+            "upper_wide": 0,
+            "lower_narrow": 12,
+            "lower_wide": 0,
+            "other": 19
+          }
+        },
+        {
+          "episode": 2,
+          "initial_position": [
+            -1.0,
+            0.0
+          ],
+          "midpoint_y_min": -0.18873044848442078,
+          "midpoint_y_max": 0.2863658666610718,
+          "complete_mode_counts": {
+            "upper_narrow": 8,
+            "upper_wide": 0,
+            "lower_narrow": 4,
+            "lower_wide": 0,
+            "other": 20
+          }
+        },
+        {
+          "episode": 3,
+          "initial_position": [
+            -1.0,
+            0.0
+          ],
+          "midpoint_y_min": -0.10873386263847351,
+          "midpoint_y_max": 0.1659843921661377,
+          "complete_mode_counts": {
+            "upper_narrow": 12,
+            "upper_wide": 0,
+            "lower_narrow": 0,
+            "lower_wide": 0,
+            "other": 20
+          }
+        },
+        {
+          "episode": 4,
+          "initial_position": [
+            -1.0,
+            0.0
+          ],
+          "midpoint_y_min": -0.16008618474006653,
+          "midpoint_y_max": 0.2404688596725464,
+          "complete_mode_counts": {
+            "upper_narrow": 8,
+            "upper_wide": 0,
+            "lower_narrow": 5,
+            "lower_wide": 0,
+            "other": 19
+          }
+        },
+        {
+          "episode": 5,
+          "initial_position": [
+            -1.0,
+            0.0
+          ],
+          "midpoint_y_min": -0.25789523124694824,
+          "midpoint_y_max": 0.18207687139511108,
+          "complete_mode_counts": {
+            "upper_narrow": 8,
+            "upper_wide": 0,
+            "lower_narrow": 8,
+            "lower_wide": 0,
+            "other": 16
+          }
+        },
+        {
+          "episode": 6,
+          "initial_position": [
+            -1.0,
+            0.0
+          ],
+          "midpoint_y_min": -0.18352645635604858,
+          "midpoint_y_max": 0.06962549686431885,
+          "complete_mode_counts": {
+            "upper_narrow": 0,
+            "upper_wide": 0,
+            "lower_narrow": 12,
+            "lower_wide": 0,
+            "other": 20
+          }
+        },
+        {
+          "episode": 7,
+          "initial_position": [
+            -1.0,
+            0.0
+          ],
+          "midpoint_y_min": -0.25052958726882935,
+          "midpoint_y_max": 0.16478252410888672,
+          "complete_mode_counts": {
+            "upper_narrow": 4,
+            "upper_wide": 0,
+            "lower_narrow": 8,
+            "lower_wide": 0,
+            "other": 20
+          }
+        },
+        {
+          "episode": 8,
+          "initial_position": [
+            -1.0,
+            0.0
+          ],
+          "midpoint_y_min": -0.11512249708175659,
+          "midpoint_y_max": 0.09714633226394653,
+          "complete_mode_counts": {
+            "upper_narrow": 0,
+            "upper_wide": 0,
+            "lower_narrow": 0,
+            "lower_wide": 0,
+            "other": 32
+          }
+        },
+        {
+          "episode": 9,
+          "initial_position": [
+            -1.0,
+            0.0
+          ],
+          "midpoint_y_min": -0.1729280650615692,
+          "midpoint_y_max": 0.09923726320266724,
+          "complete_mode_counts": {
+            "upper_narrow": 0,
+            "upper_wide": 0,
+            "lower_narrow": 12,
+            "lower_wide": 0,
+            "other": 20
+          }
+        },
+        {
+          "episode": 10,
+          "initial_position": [
+            -1.0,
+            0.0
+          ],
+          "midpoint_y_min": -0.23037311434745789,
+          "midpoint_y_max": 0.23334205150604248,
+          "complete_mode_counts": {
+            "upper_narrow": 4,
+            "upper_wide": 0,
+            "lower_narrow": 4,
+            "lower_wide": 0,
+            "other": 24
+          }
+        },
+        {
+          "episode": 11,
+          "initial_position": [
+            -1.0,
+            0.0
+          ],
+          "midpoint_y_min": -0.12509313225746155,
+          "midpoint_y_max": 0.18853050470352173,
+          "complete_mode_counts": {
+            "upper_narrow": 4,
+            "upper_wide": 0,
+            "lower_narrow": 1,
+            "lower_wide": 0,
+            "other": 27
+          }
+        },
+        {
+          "episode": 12,
+          "initial_position": [
+            -1.0,
+            0.0
+          ],
+          "midpoint_y_min": -0.31612443923950195,
+          "midpoint_y_max": 0.11921018362045288,
+          "complete_mode_counts": {
+            "upper_narrow": 0,
+            "upper_wide": 0,
+            "lower_narrow": 12,
+            "lower_wide": 0,
+            "other": 20
+          }
+        },
+        {
+          "episode": 13,
+          "initial_position": [
+            -1.0,
+            0.0
+          ],
+          "midpoint_y_min": -0.288098007440567,
+          "midpoint_y_max": 0.18061667680740356,
+          "complete_mode_counts": {
+            "upper_narrow": 8,
+            "upper_wide": 0,
+            "lower_narrow": 8,
+            "lower_wide": 0,
+            "other": 16
+          }
+        },
+        {
+          "episode": 14,
+          "initial_position": [
+            -1.0,
+            0.0
+          ],
+          "midpoint_y_min": -0.18108487129211426,
+          "midpoint_y_max": 0.1625649333000183,
+          "complete_mode_counts": {
+            "upper_narrow": 7,
+            "upper_wide": 0,
+            "lower_narrow": 4,
+            "lower_wide": 0,
+            "other": 21
+          }
+        },
+        {
+          "episode": 15,
+          "initial_position": [
+            -1.0,
+            0.0
+          ],
+          "midpoint_y_min": -0.072323739528656,
+          "midpoint_y_max": 0.18514013290405273,
+          "complete_mode_counts": {
+            "upper_narrow": 10,
+            "upper_wide": 0,
+            "lower_narrow": 0,
+            "lower_wide": 0,
+            "other": 22
+          }
+        }
+      ],
+      "fixed_bank_reweighting": {
+        "upper_narrow_direction": {
+          "beta_0": {
+            "mean_empirical_success_and_target_probability": 0.1516612172135947,
+            "mean_ESS_at_first_decision": 7.999701587109984
+          },
+          "beta_16": {
+            "mean_empirical_success_and_target_probability": 0.30523464380016097,
+            "mean_ESS_at_first_decision": 5.571200692330784
+          },
+          "beta_64": {
+            "mean_empirical_success_and_target_probability": 0.5820204838799293,
+            "mean_ESS_at_first_decision": 2.489901184922111
+          },
+          "beta_256": {
+            "mean_empirical_success_and_target_probability": 0.6908012329718407,
+            "mean_ESS_at_first_decision": 1.5058003694180548
+          },
+          "argmax_beta16_empirical_target_probability": 0.703125,
+          "max_target_frequency_in_bank_mean": 0.703125
+        },
+        "upper_narrow_width": {
+          "beta_0": {
+            "mean_empirical_success_and_target_probability": 0.1516612172135947,
+            "mean_ESS_at_first_decision": 7.999701587109984
+          },
+          "beta_16": {
+            "mean_empirical_success_and_target_probability": 0.1186733197436072,
+            "mean_ESS_at_first_decision": 6.970370289075138
+          },
+          "beta_64": {
+            "mean_empirical_success_and_target_probability": 0.04437844013488611,
+            "mean_ESS_at_first_decision": 4.957337439020005
+          },
+          "beta_256": {
+            "mean_empirical_success_and_target_probability": 0.001023505477438221,
+            "mean_ESS_at_first_decision": 3.0114759604684442
+          },
+          "argmax_beta16_empirical_target_probability": 0.0,
+          "max_target_frequency_in_bank_mean": 0.703125
+        },
+        "upper_wide_direction": {
+          "beta_0": {
+            "mean_empirical_success_and_target_probability": 0.0,
+            "mean_ESS_at_first_decision": 7.999701587109984
+          },
+          "beta_16": {
+            "mean_empirical_success_and_target_probability": 0.0,
+            "mean_ESS_at_first_decision": 4.993257258577564
+          },
+          "beta_64": {
+            "mean_empirical_success_and_target_probability": 0.0,
+            "mean_ESS_at_first_decision": 2.012545783181888
+          },
+          "beta_256": {
+            "mean_empirical_success_and_target_probability": 0.0,
+            "mean_ESS_at_first_decision": 1.325146627846168
+          },
+          "argmax_beta16_empirical_target_probability": 0.0,
+          "max_target_frequency_in_bank_mean": 0.0
+        },
+        "upper_wide_width": {
+          "beta_0": {
+            "mean_empirical_success_and_target_probability": 0.0,
+            "mean_ESS_at_first_decision": 7.999701587109984
+          },
+          "beta_16": {
+            "mean_empirical_success_and_target_probability": 0.0,
+            "mean_ESS_at_first_decision": 6.21083802267183
+          },
+          "beta_64": {
+            "mean_empirical_success_and_target_probability": 0.0,
+            "mean_ESS_at_first_decision": 2.6158508167506715
+          },
+          "beta_256": {
+            "mean_empirical_success_and_target_probability": 0.0,
+            "mean_ESS_at_first_decision": 1.3609704318675195
+          },
+          "argmax_beta16_empirical_target_probability": 0.0,
+          "max_target_frequency_in_bank_mean": 0.0
+        },
+        "lower_narrow_direction": {
+          "beta_0": {
+            "mean_empirical_success_and_target_probability": 0.1923308858006036,
+            "mean_ESS_at_first_decision": 7.999701587109984
+          },
+          "beta_16": {
+            "mean_empirical_success_and_target_probability": 0.4217996872562805,
+            "mean_ESS_at_first_decision": 5.125515835674367
+          },
+          "beta_64": {
+            "mean_empirical_success_and_target_probability": 0.6950718976179078,
+            "mean_ESS_at_first_decision": 2.100157737760981
+          },
+          "beta_256": {
+            "mean_empirical_success_and_target_probability": 0.7633281897949702,
+            "mean_ESS_at_first_decision": 1.2667373032794809
+          },
+          "argmax_beta16_empirical_target_probability": 0.765625,
+          "max_target_frequency_in_bank_mean": 0.765625
+        },
+        "lower_narrow_width": {
+          "beta_0": {
+            "mean_empirical_success_and_target_probability": 0.1923308858006036,
+            "mean_ESS_at_first_decision": 7.999701587109984
+          },
+          "beta_16": {
+            "mean_empirical_success_and_target_probability": 0.1395255893828166,
+            "mean_ESS_at_first_decision": 7.088889812254481
+          },
+          "beta_64": {
+            "mean_empirical_success_and_target_probability": 0.061736893475379875,
+            "mean_ESS_at_first_decision": 4.730394559440048
+          },
+          "beta_256": {
+            "mean_empirical_success_and_target_probability": 0.005385116765236883,
+            "mean_ESS_at_first_decision": 2.5202534741596554
+          },
+          "argmax_beta16_empirical_target_probability": 0.0,
+          "max_target_frequency_in_bank_mean": 0.765625
+        },
+        "lower_wide_direction": {
+          "beta_0": {
+            "mean_empirical_success_and_target_probability": 0.0,
+            "mean_ESS_at_first_decision": 7.999701587109984
+          },
+          "beta_16": {
+            "mean_empirical_success_and_target_probability": 0.0,
+            "mean_ESS_at_first_decision": 4.3669167733354435
+          },
+          "beta_64": {
+            "mean_empirical_success_and_target_probability": 0.0,
+            "mean_ESS_at_first_decision": 1.6439323308905265
+          },
+          "beta_256": {
+            "mean_empirical_success_and_target_probability": 0.0,
+            "mean_ESS_at_first_decision": 1.157010398662384
+          },
+          "argmax_beta16_empirical_target_probability": 0.0,
+          "max_target_frequency_in_bank_mean": 0.0
+        },
+        "lower_wide_width": {
+          "beta_0": {
+            "mean_empirical_success_and_target_probability": 0.0,
+            "mean_ESS_at_first_decision": 7.999701587109984
+          },
+          "beta_16": {
+            "mean_empirical_success_and_target_probability": 0.0,
+            "mean_ESS_at_first_decision": 5.600602149051414
+          },
+          "beta_64": {
+            "mean_empirical_success_and_target_probability": 0.0,
+            "mean_ESS_at_first_decision": 2.3072927458625254
+          },
+          "beta_256": {
+            "mean_empirical_success_and_target_probability": 0.0,
+            "mean_ESS_at_first_decision": 1.2428156669400163
+          },
+          "argmax_beta16_empirical_target_probability": 0.0,
+          "max_target_frequency_in_bank_mean": 0.0
+        }
+      }
+    },
+    "gaussian": {
+      "episodes": 16,
+      "M": 8,
+      "L": 4,
+      "complete_futures": 512,
+      "successful_futures": 470,
+      "complete_mode_counts": {
+        "upper_narrow": 52,
+        "upper_wide": 164,
+        "lower_narrow": 36,
+        "lower_wide": 252,
+        "other": 8
+      },
+      "successful_mode_counts": {
+        "upper_narrow": 52,
+        "upper_wide": 150,
+        "lower_narrow": 36,
+        "lower_wide": 224,
+        "other": 8
+      },
+      "episodes_with_any_successful_target_future": {
+        "upper_narrow": 3,
+        "upper_wide": 6,
+        "lower_narrow": 3,
+        "lower_wide": 9,
+        "other": 1
+      },
+      "episodes_detail": [
+        {
+          "episode": 0,
+          "initial_position": [
+            -0.947999894618988,
+            0.05691639706492424
+          ],
+          "midpoint_y_min": 0.7116421461105347,
+          "midpoint_y_max": 0.8713520765304565,
+          "complete_mode_counts": {
+            "upper_narrow": 0,
+            "upper_wide": 32,
+            "lower_narrow": 0,
+            "lower_wide": 0,
+            "other": 0
+          }
+        },
+        {
+          "episode": 1,
+          "initial_position": [
+            -1.0167239904403687,
+            -0.03533543646335602
+          ],
+          "midpoint_y_min": -0.9660950899124146,
+          "midpoint_y_max": -0.6895961761474609,
+          "complete_mode_counts": {
+            "upper_narrow": 0,
+            "upper_wide": 0,
+            "lower_narrow": 0,
+            "lower_wide": 32,
+            "other": 0
+          }
+        },
+        {
+          "episode": 2,
+          "initial_position": [
+            -1.0367331504821777,
+            0.03814655914902687
+          ],
+          "midpoint_y_min": 0.677216649055481,
+          "midpoint_y_max": 0.8435368537902832,
+          "complete_mode_counts": {
+            "upper_narrow": 0,
+            "upper_wide": 32,
+            "lower_narrow": 0,
+            "lower_wide": 0,
+            "other": 0
+          }
+        },
+        {
+          "episode": 3,
+          "initial_position": [
+            -1.0382956266403198,
+            0.011844847351312637
+          ],
+          "midpoint_y_min": 0.197687566280365,
+          "midpoint_y_max": 0.48261356353759766,
+          "complete_mode_counts": {
+            "upper_narrow": 20,
+            "upper_wide": 12,
+            "lower_narrow": 0,
+            "lower_wide": 0,
+            "other": 0
+          }
+        },
+        {
+          "episode": 4,
+          "initial_position": [
+            -1.026212215423584,
+            -0.0490378700196743
+          ],
+          "midpoint_y_min": -1.1091121435165405,
+          "midpoint_y_max": -0.8488396406173706,
+          "complete_mode_counts": {
+            "upper_narrow": 0,
+            "upper_wide": 0,
+            "lower_narrow": 0,
+            "lower_wide": 32,
+            "other": 0
+          }
+        },
+        {
+          "episode": 5,
+          "initial_position": [
+            -1.0211873054504395,
+            0.10855749994516373
+          ],
+          "midpoint_y_min": 1.036210298538208,
+          "midpoint_y_max": 1.1644397974014282,
+          "complete_mode_counts": {
+            "upper_narrow": 0,
+            "upper_wide": 32,
+            "lower_narrow": 0,
+            "lower_wide": 0,
+            "other": 0
+          }
+        },
+        {
+          "episode": 6,
+          "initial_position": [
+            -0.9297794699668884,
+            -0.04725749045610428
+          ],
+          "midpoint_y_min": -0.8904556035995483,
+          "midpoint_y_max": -0.6723480820655823,
+          "complete_mode_counts": {
+            "upper_narrow": 0,
+            "upper_wide": 0,
+            "lower_narrow": 0,
+            "lower_wide": 32,
+            "other": 0
+          }
+        },
+        {
+          "episode": 7,
+          "initial_position": [
+            -0.8818215727806091,
+            0.007985698990523815
+          ],
+          "midpoint_y_min": -0.005542755126953125,
+          "midpoint_y_max": 0.259823739528656,
+          "complete_mode_counts": {
+            "upper_narrow": 24,
+            "upper_wide": 0,
+            "lower_narrow": 0,
+            "lower_wide": 0,
+            "other": 8
+          }
+        },
+        {
+          "episode": 8,
+          "initial_position": [
+            -1.0321534872055054,
+            -0.023307431489229202
+          ],
+          "midpoint_y_min": -0.673629879951477,
+          "midpoint_y_max": -0.4162898063659668,
+          "complete_mode_counts": {
+            "upper_narrow": 0,
+            "upper_wide": 0,
+            "lower_narrow": 0,
+            "lower_wide": 32,
+            "other": 0
+          }
+        },
+        {
+          "episode": 9,
+          "initial_position": [
+            -0.9967718124389648,
+            0.04425215721130371
+          ],
+          "midpoint_y_min": 0.6918107271194458,
+          "midpoint_y_max": 0.8241939544677734,
+          "complete_mode_counts": {
+            "upper_narrow": 0,
+            "upper_wide": 32,
+            "lower_narrow": 0,
+            "lower_wide": 0,
+            "other": 0
+          }
+        },
+        {
+          "episode": 10,
+          "initial_position": [
+            -0.9978139996528625,
+            -0.020876768976449966
+          ],
+          "midpoint_y_min": -0.6323939561843872,
+          "midpoint_y_max": -0.3107365369796753,
+          "complete_mode_counts": {
+            "upper_narrow": 0,
+            "upper_wide": 0,
+            "lower_narrow": 4,
+            "lower_wide": 28,
+            "other": 0
+          }
+        },
+        {
+          "episode": 11,
+          "initial_position": [
+            -0.9564268589019775,
+            0.01829478330910206
+          ],
+          "midpoint_y_min": 0.3237695097923279,
+          "midpoint_y_max": 0.5092343091964722,
+          "complete_mode_counts": {
+            "upper_narrow": 8,
+            "upper_wide": 24,
+            "lower_narrow": 0,
+            "lower_wide": 0,
+            "other": 0
+          }
+        },
+        {
+          "episode": 12,
+          "initial_position": [
+            -1.046933650970459,
+            -0.016480250284075737
+          ],
+          "midpoint_y_min": -0.7048587799072266,
+          "midpoint_y_max": -0.27984991669654846,
+          "complete_mode_counts": {
+            "upper_narrow": 0,
+            "upper_wide": 0,
+            "lower_narrow": 8,
+            "lower_wide": 24,
+            "other": 0
+          }
+        },
+        {
+          "episode": 13,
+          "initial_position": [
+            -0.9866969585418701,
+            -0.03588499873876572
+          ],
+          "midpoint_y_min": -0.9172277450561523,
+          "midpoint_y_max": -0.5986183881759644,
+          "complete_mode_counts": {
+            "upper_narrow": 0,
+            "upper_wide": 0,
+            "lower_narrow": 0,
+            "lower_wide": 32,
+            "other": 0
+          }
+        },
+        {
+          "episode": 14,
+          "initial_position": [
+            -1.0084500312805176,
+            -0.05094737932085991
+          ],
+          "midpoint_y_min": -1.0784145593643188,
+          "midpoint_y_max": -0.8547587394714355,
+          "complete_mode_counts": {
+            "upper_narrow": 0,
+            "upper_wide": 0,
+            "lower_narrow": 0,
+            "lower_wide": 32,
+            "other": 0
+          }
+        },
+        {
+          "episode": 15,
+          "initial_position": [
+            -1.0393836498260498,
+            -0.013272065669298172
+          ],
+          "midpoint_y_min": -0.4399491548538208,
+          "midpoint_y_max": -0.1569122076034546,
+          "complete_mode_counts": {
+            "upper_narrow": 0,
+            "upper_wide": 0,
+            "lower_narrow": 24,
+            "lower_wide": 8,
+            "other": 0
+          }
+        }
+      ],
+      "fixed_bank_reweighting": {
+        "upper_narrow_direction": {
+          "beta_0": {
+            "mean_empirical_success_and_target_probability": 0.10179945177407901,
+            "mean_ESS_at_first_decision": 6.718552720532106
+          },
+          "beta_16": {
+            "mean_empirical_success_and_target_probability": 0.10366103095613871,
+            "mean_ESS_at_first_decision": 5.9514953394106715
+          },
+          "beta_64": {
+            "mean_empirical_success_and_target_probability": 0.09597063184683084,
+            "mean_ESS_at_first_decision": 4.239353837367679
+          },
+          "beta_256": {
+            "mean_empirical_success_and_target_probability": 0.06963409020233444,
+            "mean_ESS_at_first_decision": 2.8794917188173375
+          },
+          "argmax_beta16_empirical_target_probability": 0.0625,
+          "max_target_frequency_in_bank_mean": 0.1875
+        },
+        "upper_narrow_width": {
+          "beta_0": {
+            "mean_empirical_success_and_target_probability": 0.10179945177407901,
+            "mean_ESS_at_first_decision": 6.718552720532106
+          },
+          "beta_16": {
+            "mean_empirical_success_and_target_probability": 0.11662280062564376,
+            "mean_ESS_at_first_decision": 5.085605437039604
+          },
+          "beta_64": {
+            "mean_empirical_success_and_target_probability": 0.12352320062993323,
+            "mean_ESS_at_first_decision": 2.5780989434852777
+          },
+          "beta_256": {
+            "mean_empirical_success_and_target_probability": 0.12503188686337965,
+            "mean_ESS_at_first_decision": 1.298982576364884
+          },
+          "argmax_beta16_empirical_target_probability": 0.125,
+          "max_target_frequency_in_bank_mean": 0.1875
+        },
+        "upper_wide_direction": {
+          "beta_0": {
+            "mean_empirical_success_and_target_probability": 0.3202916486724553,
+            "mean_ESS_at_first_decision": 6.718552720532106
+          },
+          "beta_16": {
+            "mean_empirical_success_and_target_probability": 0.33999221798365414,
+            "mean_ESS_at_first_decision": 6.374239223935247
+          },
+          "beta_64": {
+            "mean_empirical_success_and_target_probability": 0.36818815368205104,
+            "mean_ESS_at_first_decision": 4.833104987055156
+          },
+          "beta_256": {
+            "mean_empirical_success_and_target_probability": 0.3749354895591522,
+            "mean_ESS_at_first_decision": 2.6152917427431994
+          },
+          "argmax_beta16_empirical_target_probability": 0.375,
+          "max_target_frequency_in_bank_mean": 0.375
+        },
+        "upper_wide_width": {
+          "beta_0": {
+            "mean_empirical_success_and_target_probability": 0.3202916486724553,
+            "mean_ESS_at_first_decision": 6.718552720532106
+          },
+          "beta_16": {
+            "mean_empirical_success_and_target_probability": 0.3498201682204388,
+            "mean_ESS_at_first_decision": 5.716899687300793
+          },
+          "beta_64": {
+            "mean_empirical_success_and_target_probability": 0.3736093406595468,
+            "mean_ESS_at_first_decision": 3.106407429611441
+          },
+          "beta_256": {
+            "mean_empirical_success_and_target_probability": 0.37491203948938073,
+            "mean_ESS_at_first_decision": 1.6583104250293466
+          },
+          "argmax_beta16_empirical_target_probability": 0.375,
+          "max_target_frequency_in_bank_mean": 0.375
+        },
+        "lower_narrow_direction": {
+          "beta_0": {
+            "mean_empirical_success_and_target_probability": 0.07132928099870323,
+            "mean_ESS_at_first_decision": 6.718552720532106
+          },
+          "beta_16": {
+            "mean_empirical_success_and_target_probability": 0.06137232370846891,
+            "mean_ESS_at_first_decision": 6.255993819808996
+          },
+          "beta_64": {
+            "mean_empirical_success_and_target_probability": 0.039220536839019576,
+            "mean_ESS_at_first_decision": 4.924248223589249
+          },
+          "beta_256": {
+            "mean_empirical_success_and_target_probability": 0.010382934538781545,
+            "mean_ESS_at_first_decision": 2.8231865620929777
+          },
+          "argmax_beta16_empirical_target_probability": 0.0,
+          "max_target_frequency_in_bank_mean": 0.1875
+        },
+        "lower_narrow_width": {
+          "beta_0": {
+            "mean_empirical_success_and_target_probability": 0.07132928099870323,
+            "mean_ESS_at_first_decision": 6.718552720532106
+          },
+          "beta_16": {
+            "mean_empirical_success_and_target_probability": 0.12177258878864945,
+            "mean_ESS_at_first_decision": 5.133364696597988
+          },
+          "beta_64": {
+            "mean_empirical_success_and_target_probability": 0.18421753398885016,
+            "mean_ESS_at_first_decision": 2.4812889738878017
+          },
+          "beta_256": {
+            "mean_empirical_success_and_target_probability": 0.1874999896956735,
+            "mean_ESS_at_first_decision": 1.2526831647101724
+          },
+          "argmax_beta16_empirical_target_probability": 0.1875,
+          "max_target_frequency_in_bank_mean": 0.1875
+        },
+        "lower_wide_direction": {
+          "beta_0": {
+            "mean_empirical_success_and_target_probability": 0.49110655930899516,
+            "mean_ESS_at_first_decision": 6.718552720532106
+          },
+          "beta_16": {
+            "mean_empirical_success_and_target_probability": 0.5207993300091813,
+            "mean_ESS_at_first_decision": 6.231869129652271
+          },
+          "beta_64": {
+            "mean_empirical_success_and_target_probability": 0.5507622948656061,
+            "mean_ESS_at_first_decision": 4.351112880548223
+          },
+          "beta_256": {
+            "mean_empirical_success_and_target_probability": 0.5611146996924745,
+            "mean_ESS_at_first_decision": 2.6869060234365256
+          },
+          "argmax_beta16_empirical_target_probability": 0.5625,
+          "max_target_frequency_in_bank_mean": 0.5625
+        },
+        "lower_wide_width": {
+          "beta_0": {
+            "mean_empirical_success_and_target_probability": 0.49110655930899516,
+            "mean_ESS_at_first_decision": 6.718552720532106
+          },
+          "beta_16": {
+            "mean_empirical_success_and_target_probability": 0.5316454091897257,
+            "mean_ESS_at_first_decision": 5.664955631040484
+          },
+          "beta_64": {
+            "mean_empirical_success_and_target_probability": 0.557799011909208,
+            "mean_ESS_at_first_decision": 3.093568873840236
+          },
+          "beta_256": {
+            "mean_empirical_success_and_target_probability": 0.5536590085338753,
+            "mean_ESS_at_first_decision": 1.7295983250240132
+          },
+          "argmax_beta16_empirical_target_probability": 0.5625,
+          "max_target_frequency_in_bank_mean": 0.5625
+        }
+      }
+    }
+  },
+  "training": {
+    "mode_counts": {
+      "lower-narrow": 128,
+      "lower-wide": 128,
+      "upper-narrow": 128,
+      "upper-wide": 128
+    },
+    "unique_initial_positions": [
+      [
+        -1.0,
+        0.0
+      ]
+    ]
+  },
+  "prototype_objective_check": {
+    "modes": [
+      "upper_narrow",
+      "upper_wide",
+      "lower_narrow",
+      "lower_wide",
+      "other"
+    ],
+    "signed_amplitudes": [
+      0.27,
+      0.53,
+      -0.27,
+      -0.53,
+      0.0
+    ],
+    "profiles": {
+      "upper_narrow_direction": {
+        "utilities": [
+          0.6677139174568217,
+          0.6947951494016652,
+          0.43256299669535836,
+          0.32710312408113273,
+          0.5800000000000001
+        ],
+        "preferred_mode": "upper_wide"
+      },
+      "upper_narrow_width": {
+        "utilities": [
+          0.7299476933995429,
+          0.5897580501306623,
+          0.671159963209177,
+          0.49783504380052923,
+          0.8200000000000001
+        ],
+        "preferred_mode": "other"
+      },
+      "upper_wide_direction": {
+        "utilities": [
+          0.5674370033046418,
+          0.6728968759188674,
+          0.3322860825431784,
+          0.30520485059833485,
+          0.42000000000000004
+        ],
+        "preferred_mode": "upper_wide"
+      },
+      "upper_wide_width": {
+        "utilities": [
+          0.32884003679082296,
+          0.502164956199471,
+          0.27005230660045715,
+          0.4102419498693378,
+          0.18
+        ],
+        "preferred_mode": "upper_wide"
+      },
+      "lower_narrow_direction": {
+        "utilities": [
+          0.43256299669535836,
+          0.32710312408113273,
+          0.6677139174568217,
+          0.6947951494016653,
+          0.5800000000000001
+        ],
+        "preferred_mode": "lower_wide"
+      },
+      "lower_narrow_width": {
+        "utilities": [
+          0.671159963209177,
+          0.49783504380052923,
+          0.7299476933995429,
+          0.5897580501306624,
+          0.8200000000000001
+        ],
+        "preferred_mode": "other"
+      },
+      "lower_wide_direction": {
+        "utilities": [
+          0.3322860825431784,
+          0.30520485059833485,
+          0.5674370033046418,
+          0.6728968759188675,
+          0.42000000000000004
+        ],
+        "preferred_mode": "lower_wide"
+      },
+      "lower_wide_width": {
+        "utilities": [
+          0.27005230660045715,
+          0.4102419498693378,
+          0.32884003679082296,
+          0.502164956199471,
+          0.18
+        ],
+        "preferred_mode": "lower_wide"
+      }
+    }
+  }
+}

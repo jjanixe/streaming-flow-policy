@@ -1,0 +1,118 @@
+{
+  "centered": {
+    "upper_narrow_direction": {
+      "count": 16,
+      "learned_mode_hits": 6,
+      "oracle_mode_hits": 6,
+      "learned_success": 16,
+      "oracle_success": 16
+    },
+    "upper_wide_direction": {
+      "count": 16,
+      "learned_mode_hits": 0,
+      "oracle_mode_hits": 0,
+      "learned_success": 16,
+      "oracle_success": 16
+    },
+    "lower_narrow_direction": {
+      "count": 16,
+      "learned_mode_hits": 8,
+      "oracle_mode_hits": 7,
+      "learned_success": 16,
+      "oracle_success": 16
+    },
+    "lower_wide_direction": {
+      "count": 16,
+      "learned_mode_hits": 0,
+      "oracle_mode_hits": 0,
+      "learned_success": 16,
+      "oracle_success": 16
+    },
+    "upper_narrow_width": {
+      "count": 16,
+      "learned_mode_hits": 3,
+      "oracle_mode_hits": 3,
+      "learned_success": 16,
+      "oracle_success": 16
+    },
+    "upper_wide_width": {
+      "count": 16,
+      "learned_mode_hits": 0,
+      "oracle_mode_hits": 0,
+      "learned_success": 16,
+      "oracle_success": 16
+    },
+    "lower_narrow_width": {
+      "count": 16,
+      "learned_mode_hits": 3,
+      "oracle_mode_hits": 3,
+      "learned_success": 16,
+      "oracle_success": 16
+    },
+    "lower_wide_width": {
+      "count": 16,
+      "learned_mode_hits": 0,
+      "oracle_mode_hits": 0,
+      "learned_success": 16,
+      "oracle_success": 16
+    }
+  },
+  "gaussian": {
+    "upper_narrow_direction": {
+      "count": 16,
+      "learned_mode_hits": 2,
+      "oracle_mode_hits": 2,
+      "learned_success": 16,
+      "oracle_success": 16
+    },
+    "upper_wide_direction": {
+      "count": 16,
+      "learned_mode_hits": 6,
+      "oracle_mode_hits": 6,
+      "learned_success": 16,
+      "oracle_success": 16
+    },
+    "lower_narrow_direction": {
+      "count": 16,
+      "learned_mode_hits": 1,
+      "oracle_mode_hits": 1,
+      "learned_success": 16,
+      "oracle_success": 16
+    },
+    "lower_wide_direction": {
+      "count": 16,
+      "learned_mode_hits": 8,
+      "oracle_mode_hits": 8,
+      "learned_success": 16,
+      "oracle_success": 16
+    },
+    "upper_narrow_width": {
+      "count": 16,
+      "learned_mode_hits": 2,
+      "oracle_mode_hits": 2,
+      "learned_success": 16,
+      "oracle_success": 16
+    },
+    "upper_wide_width": {
+      "count": 16,
+      "learned_mode_hits": 6,
+      "oracle_mode_hits": 6,
+      "learned_success": 16,
+      "oracle_success": 16
+    },
+    "lower_narrow_width": {
+      "count": 16,
+      "learned_mode_hits": 3,
+      "oracle_mode_hits": 3,
+      "learned_success": 16,
+      "oracle_success": 16
+    },
+    "lower_wide_width": {
+      "count": 16,
+      "learned_mode_hits": 9,
+      "oracle_mode_hits": 9,
+      "learned_success": 16,
+      "oracle_success": 16
+    }
+  }
+}

@@ -1,0 +1,42 @@
+[
+  {
+    "user": "upper_narrow_direction",
+    "best_analytic_amplitude": 0.58,
+    "grid_utility": 0.6974472504247277
+  },
+  {
+    "user": "upper_narrow_width",
+    "best_analytic_amplitude": 0.029000000000000026,
+    "grid_utility": 0.8217506654092469
+  },
+  {
+    "user": "upper_wide_direction",
+    "best_analytic_amplitude": 0.58,
+    "grid_utility": 0.6867546867694234
+  },
+  {
+    "user": "upper_wide_width",
+    "best_analytic_amplitude": 0.58,
+    "grid_utility": 0.5266401148386605
+  },
+  {
+    "user": "lower_narrow_direction",
+    "best_analytic_amplitude": -0.58,
+    "grid_utility": 0.6974472504247277
+  },
+  {
+    "user": "lower_narrow_width",
+    "best_analytic_amplitude": -0.028999999999999915,
+    "grid_utility": 0.8217506654092469
+  },
+  {
+    "user": "lower_wide_direction",
+    "best_analytic_amplitude": -0.58,
+    "grid_utility": 0.6867546867694234
+  },
+  {
+    "user": "lower_wide_width",
+    "best_analytic_amplitude": -0.58,
+    "grid_utility": 0.5266401148386605
+  }
+]

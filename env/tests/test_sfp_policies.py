@@ -140,6 +140,39 @@ def test_sfps_prediction_can_use_an_explicit_latent_without_sampling():
     torch.testing.assert_close(actions[0, -1], latent * (8.0 / 15.0), atol=1e-4, rtol=1e-4)
 
 
+def test_sfps_batched_prediction_integrates_multiple_explicit_latents_together():
+    policy = StreamingFlowPolicyStochastic(LatentSensitiveJointVelocity())
+    nobs = torch.tensor(
+        [
+            [[-0.5, 0.1, -1.0], [-0.4, 0.2, -0.75]],
+            [[0.1, -0.2, -1.0], [0.2, -0.1, -0.75]],
+            [[0.0, 0.0, -1.0], [0.3, 0.4, -0.75]],
+        ],
+        dtype=torch.float32,
+    )
+    latents = torch.tensor(
+        [[0.3, -0.15], [-0.2, 0.25], [0.1, 0.2]],
+        dtype=torch.float32,
+    )
+
+    actions = policy.predict_batch(
+        nobs,
+        num_actions=9,
+        integration_steps_per_action=2,
+        latents=latents,
+    )
+
+    assert actions.shape == (3, 9, 2)
+    assert actions.dtype == torch.float32
+    torch.testing.assert_close(actions[:, 0], nobs[:, -1, :2], rtol=0.0, atol=0.0)
+    torch.testing.assert_close(
+        actions[:, -1],
+        nobs[:, -1, :2] + latents * (8.0 / 15.0),
+        atol=1e-4,
+        rtol=1e-4,
+    )
+
+
 def test_prediction_starts_at_anchor_and_samples_eight_future_actions():
     policy = StreamingFlowPolicyDeterministic(ConstantVelocity())
     nobs = torch.tensor(
