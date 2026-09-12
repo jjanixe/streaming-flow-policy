@@ -1,0 +1,9 @@
+regime,target,episodes,base_task_success,base_mode,base_joint,task_only_joint,direction_mode,direction_task,direction_joint,direction_rescued,direction_lost,direction_retained,width_mode,width_task,width_joint,width_rescued,width_lost,width_retained
+centered,upper_narrow,16,16,4,4,0,16,16,16,12,0,4,16,16,16,12,0,4
+centered,upper_wide,16,16,0,0,0,16,16,16,16,0,0,16,16,16,16,0,0
+centered,lower_narrow,16,16,3,3,14,16,16,16,13,0,3,16,16,16,13,0,3
+centered,lower_wide,16,16,0,0,0,16,16,16,16,0,0,16,16,16,16,0,0
+gaussian,upper_narrow,16,14,0,0,4,16,16,16,16,0,0,16,16,16,16,0,0
+gaussian,upper_wide,16,14,6,5,1,13,16,13,8,0,5,12,16,12,7,0,5
+gaussian,lower_narrow,16,14,1,1,8,16,16,16,15,0,1,16,16,16,15,0,1
+gaussian,lower_wide,16,14,8,7,0,15,16,15,8,0,7,15,16,15,8,0,7

@@ -2,6 +2,8 @@
 
 2026-09-12 publication. [Method·수식·코드](2026-09-12-preference-steering-method.md), [최신 결과·GIF](2026-09-12-mode-aligned-steering-results.md).
 
+추가 분석: [raw base 대비 mode 선택·성공 비교](2026-09-12-base-vs-steering.md). 기존 공개 compact NPZ를 재집계했으며 새 episode를 추가하지 않았다. 새 비교표·분포 그림·base 직접 비교 GIF는 `docs/research/artifacts/2026-09-12-base-vs-steering/`에, 재현 코드는 [compare_base_steering.py](compare_base_steering.py)에 있다. [추가 분석의 경로·해시·검증 manifest](artifacts/2026-09-12-base-vs-steering/artifact_manifest.json)를 별도로 저장했다. 아래 499-file manifest는 앞선 publication 시점의 inventory이며 이 추가 분석 파일은 포함하지 않는다.
+
 ## 저장 범위
 
 코드·논문 조사·수식 검토·보고서와 함께, `env/artifacts/`의 JSON/CSV, 그림/GIF, 분석 스크립트, synthetic demonstration, checkpoint/stats, 소규모 이전 실험 배열을 Git에 포함한다. 전체 grouped 후보/가상 미래 NPZ는 로컬에 보존하고 아래 manifest에 경로·크기·SHA-256을 남긴다. Manifest의 `storage=local-only` 파일은 clone에 포함되지 않는다. 외부 다운로드 링크나 별도 저장소에 업로드했다고 주장하지 않는다.

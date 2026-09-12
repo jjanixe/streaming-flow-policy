@@ -1,6 +1,6 @@
 # Preference steering 연구 기록
 
-현재 상태는 [method: 수식·핵심 구현](2026-09-12-preference-steering-method.md), [mode 제어 결과·GIF](2026-09-12-mode-aligned-steering-results.md), [산출물·위치·재현](2026-09-12-preference-steering-artifacts.md)에서 확인한다.
+현재 상태는 [method: 수식·핵심 구현](2026-09-12-preference-steering-method.md), [raw base 대비 steering 성공 비교](2026-09-12-base-vs-steering.md), [mode 제어 결과·GIF](2026-09-12-mode-aligned-steering-results.md), [산출물·위치·재현](2026-09-12-preference-steering-artifacts.md)에서 확인한다.
 
 | 문서 | 범위 |
 |---|---|

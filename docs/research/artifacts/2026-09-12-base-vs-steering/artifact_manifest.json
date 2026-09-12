@@ -1,0 +1,101 @@
+{
+  "controller_commit": "d35df242fe7f98eebb7ada591f8720354c319572",
+  "analysis_source_compiles": true,
+  "new_policy_rollouts": 0,
+  "actual_episodes_compared": 320,
+  "paired_comparison_and_saved_metrics_pass": true,
+  "core_controller_unchanged": true,
+  "figures_viewed": [
+    "target_mode_success.png",
+    "mode_distribution.png",
+    "centered_frame_64.png",
+    "gaussian_frame_64.png"
+  ],
+  "gif_frames": 65,
+  "gif_size": [
+    1800,
+    880
+  ],
+  "artifacts": [
+    {
+      "path": "docs/research/2026-09-12-base-vs-steering.md",
+      "bytes": 6449,
+      "sha256": "0c3c37a3bf3e73e8d26aa5154809d3aa0b631995e1fa012bbc472fd3cad90c30"
+    },
+    {
+      "path": "docs/research/artifacts/2026-09-12-base-vs-steering/centered_base_vs_steering.gif",
+      "bytes": 5459539,
+      "sha256": "e15cea8f6de1c6fb0b9fd876e2654693dac64a64a1349dad7d1f1dcf3168f4f0"
+    },
+    {
+      "path": "docs/research/artifacts/2026-09-12-base-vs-steering/centered_frame_00.png",
+      "bytes": 94476,
+      "sha256": "ec7acfac3ab1a86c34feb2c0fe0c370b8c16f6c37d1d7f2d5c8565b9e34e95cc"
+    },
+    {
+      "path": "docs/research/artifacts/2026-09-12-base-vs-steering/centered_frame_32.png",
+      "bytes": 131682,
+      "sha256": "52e6eda0bcad52f9dd602c365d7e85cb6f3c577a2cec9bf8a06ac537f94c0326"
+    },
+    {
+      "path": "docs/research/artifacts/2026-09-12-base-vs-steering/centered_frame_64.png",
+      "bytes": 162298,
+      "sha256": "67ed7b45e2a1a3eb6629d61010052930d6cf3a7c0a391ba36711065476fa6082"
+    },
+    {
+      "path": "docs/research/artifacts/2026-09-12-base-vs-steering/comparison.json",
+      "bytes": 38617,
+      "sha256": "d153a937f8a0333a1019c9611976ce70a72ab284bc8df1ecf6ce74d7ff8c5d80"
+    },
+    {
+      "path": "docs/research/artifacts/2026-09-12-base-vs-steering/gaussian_base_vs_steering.gif",
+      "bytes": 7112895,
+      "sha256": "28a2c7ced4c503994e4b8fb2b68c32c8450f9f5c23e576251faa916829c76297"
+    },
+    {
+      "path": "docs/research/artifacts/2026-09-12-base-vs-steering/gaussian_frame_00.png",
+      "bytes": 99405,
+      "sha256": "fac7f111b38789f752fa1395428c014c88cd80d01640c7a5c71b75df026838eb"
+    },
+    {
+      "path": "docs/research/artifacts/2026-09-12-base-vs-steering/gaussian_frame_32.png",
+      "bytes": 185859,
+      "sha256": "62e07feb371cef40671a22efbe66aa3057cc9a2aade97d2785d54800638355f8"
+    },
+    {
+      "path": "docs/research/artifacts/2026-09-12-base-vs-steering/gaussian_frame_64.png",
+      "bytes": 243442,
+      "sha256": "adaa9464723105ff846109cd74d3db592928cbce9ce45f36cc6b0f3c8133886e"
+    },
+    {
+      "path": "docs/research/artifacts/2026-09-12-base-vs-steering/mode_distribution.png",
+      "bytes": 109455,
+      "sha256": "0597dba4b35a91788c3d2dadfb037b8eee919e574429de1fb0b506008d2e7c3d"
+    },
+    {
+      "path": "docs/research/artifacts/2026-09-12-base-vs-steering/mode_distribution.svg",
+      "bytes": 108603,
+      "sha256": "3f5f4200bd88511627fb1fd15904d8abeb8b3b0d57b9ea9b39a7287f2f49c303"
+    },
+    {
+      "path": "docs/research/artifacts/2026-09-12-base-vs-steering/target_mode_comparison.csv",
+      "bytes": 767,
+      "sha256": "62c675bcea51b14f81246152e338f1810c1df8f1430d285a103c88cafeae4097"
+    },
+    {
+      "path": "docs/research/artifacts/2026-09-12-base-vs-steering/target_mode_success.png",
+      "bytes": 89959,
+      "sha256": "df1a7751a2a0df5e7bcd7e23d76e37ffed1036bbce7ea5eae6408f31d9f3995a"
+    },
+    {
+      "path": "docs/research/artifacts/2026-09-12-base-vs-steering/target_mode_success.svg",
+      "bytes": 75227,
+      "sha256": "a4d8f3d7c2964f42928efbd0eb1507ada32e7a9ddca912eed3af7ee6e35755e6"
+    },
+    {
+      "path": "docs/research/compare_base_steering.py",
+      "bytes": 22732,
+      "sha256": "ca4a3e5a8a7f7b62b43cd74d614960b48d96363abe223916e8960d2e249a9738"
+    }
+  ]
+}
